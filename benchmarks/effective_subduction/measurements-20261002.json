@@ -1,0 +1,770 @@
+{
+  "experiment": "effective_subduction_v1",
+  "runtime": {
+    "executable": "E:\\Deep-Time\\Deep-Time-handoff-2026-09-06\\mesh\\.venv\\Scripts\\python.exe",
+    "python": "3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]",
+    "numpy": "2.3.5",
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "methodology": "Frozen assembly and nonlinear solve are timed separately after one warmup; identical native initial geometry, distinct laws and resulting velocities.",
+  "limitations": [
+    "Small coarse worlds and short histories do not establish geological realism or long-run performance.",
+    "Both modes use the same native material, ocean, collision, rifting and source operators; these costs can dominate the whole step.",
+    "Force magnitudes and resulting trajectories differ; a timing ratio is not a matched-physics accuracy comparison.",
+    "Whole-step samples have no excluded warmup and have different evolved geometry."
+  ],
+  "measurements": [
+    {
+      "config": {
+        "width": 48,
+        "height": 24,
+        "mesh_level": 2,
+        "coast_geometry_level": 2,
+        "plate_count": 4,
+        "mechanics_nodes": 128,
+        "seed": 37,
+        "physics_profile": "reviewed_v1",
+        "subduction_response": "fixed_trench",
+        "primordial_subduction": {
+          "enabled": true,
+          "target_margin_fraction": 0.45,
+          "selection_seed": 5
+        },
+        "effective_subduction": {
+          "enabled": true,
+          "force_n_per_m": 5000000000000.0
+        }
+      },
+      "native_cells": 320,
+      "baseline_configs": {
+        "detailed_slab": {
+          "width": 48,
+          "height": 24,
+          "mesh_level": 2,
+          "coast_geometry_level": 2,
+          "plate_count": 4,
+          "mechanics_nodes": 128,
+          "seed": 37,
+          "physics_profile": "reviewed_v1",
+          "subduction_response": "fixed_trench",
+          "primordial_subduction": {
+            "enabled": true,
+            "target_margin_fraction": 0.45,
+            "selection_seed": 5
+          },
+          "effective_subduction": {
+            "enabled": false,
+            "force_n_per_m": 5000000000000.0
+          }
+        },
+        "coupled_lifecycle": {
+          "width": 48,
+          "height": 24,
+          "mesh_level": 2,
+          "coast_geometry_level": 2,
+          "plate_count": 4,
+          "mechanics_nodes": 128,
+          "seed": 37,
+          "physics_profile": "reviewed_v1",
+          "subduction_response": "moving_hinge_v1",
+          "primordial_subduction": {
+            "enabled": true,
+            "target_margin_fraction": 0.45,
+            "selection_seed": 5
+          },
+          "effective_subduction": {
+            "enabled": false,
+            "force_n_per_m": 5000000000000.0
+          },
+          "continental_lifecycle": {
+            "enabled": true
+          }
+        }
+      },
+      "initialization_seconds": {
+        "detailed_slab": 1.4742545001208782,
+        "coupled_lifecycle": 1.5509655000641942,
+        "effective": 2.812885700026527
+      },
+      "same_initial_geometry": {
+        "xyz": true,
+        "plate": true,
+        "support": true,
+        "age": true,
+        "crust": true,
+        "pos": true,
+        "mass": true,
+        "bp": true,
+        "bq": true,
+        "ba": true,
+        "bb": true,
+        "bl": true,
+        "bmid": true,
+        "bn": true
+      },
+      "zero_motion_start": {
+        "input_max_omega": 0.0,
+        "solved_max_omega": 0.0006141880551687041,
+        "warm_start_independent": true,
+        "time_myr": 0.0,
+        "steps": 0,
+        "inventory": {
+          "slab_fed_area_km2": 0.0,
+          "slab_retained_area_km2": 0.0,
+          "slab_retained_buoyancy_area_km2": 0.0,
+          "slab_retired_area_km2": 0.0,
+          "slab_initial_excess_mass_kg": 0.0,
+          "slab_fed_excess_mass_kg": 0.0,
+          "slab_retained_excess_mass_kg": 0.0,
+          "slab_retired_excess_mass_kg": 0.0,
+          "slab_initial_area_km2": 0.0
+        },
+        "ocean_consumed_km2": 0.0,
+        "speeds": {
+          "mean_cm_yr": 0.30956835381543685,
+          "max_cm_yr": 0.4574820358396854,
+          "by_plate_mean_cm_yr": {
+            "0": 0.3465705369839445,
+            "1": 0.08338991585002979,
+            "2": 0.42214464565446547,
+            "3": 0.33661544251866216
+          }
+        }
+      },
+      "frozen_state": {
+        "detailed_slab": {
+          "active_slab_tethers": false,
+          "active_effective_subduction": false,
+          "assembly": {
+            "raw_seconds": [
+              0.19588740007020533,
+              0.17303740000352263,
+              0.1806522998958826,
+              0.17694559996016324,
+              0.16012459993362427,
+              0.16425370005890727,
+              0.18730619992129505
+            ],
+            "median_seconds": 0.17694559996016324,
+            "mean_seconds": 0.17688674283480005,
+            "p25_seconds": 0.16864555003121495,
+            "p75_seconds": 0.18397924990858883
+          },
+          "solve": {
+            "raw_seconds": [
+              0.01722029992379248,
+              0.01745869987644255,
+              0.01785339997150004,
+              0.01761800004169345,
+              0.02068750001490116,
+              0.02240919996984303,
+              0.01809670007787645
+            ],
+            "median_seconds": 0.01785339997150004,
+            "mean_seconds": 0.018763399982292737,
+            "p25_seconds": 0.017538349959068,
+            "p75_seconds": 0.019392100046388805
+          },
+          "combined": {
+            "raw_seconds": [
+              0.2131076999939978,
+              0.19049609987996519,
+              0.19850569986738265,
+              0.19456360000185668,
+              0.18081209994852543,
+              0.1866629000287503,
+              0.2054028999991715
+            ],
+            "median_seconds": 0.19456360000185668,
+            "mean_seconds": 0.19565014281709278,
+            "p25_seconds": 0.18857949995435774,
+            "p75_seconds": 0.20195429993327707
+          },
+          "newton_iterations": [
+            25,
+            25,
+            25,
+            25,
+            25,
+            25,
+            25
+          ],
+          "boundaries": 47,
+          "force_active_edges": 16,
+          "scaled_force_residual": 1.572918719376299e-10,
+          "driver_work_w": 14449824346.459042,
+          "power_balance_error_w": -0.03838157653808594,
+          "negative_resisting_work_elements": 0
+        },
+        "coupled_lifecycle": {
+          "active_slab_tethers": true,
+          "active_effective_subduction": false,
+          "assembly": {
+            "raw_seconds": [
+              0.19788390002213418,
+              0.1801495999097824,
+              0.1863035000860691,
+              0.17131520016118884,
+              0.18618670012801886,
+              0.17380999983288348,
+              0.16926299990154803
+            ],
+            "median_seconds": 0.1801495999097824,
+            "mean_seconds": 0.1807017000059464,
+            "p25_seconds": 0.17256259999703616,
+            "p75_seconds": 0.18624510010704398
+          },
+          "solve": {
+            "raw_seconds": [
+              0.01612569997087121,
+              0.015168899903073907,
+              0.015923399943858385,
+              0.017790599958971143,
+              0.015732599887996912,
+              0.016104600159451365,
+              0.015463799936696887
+            ],
+            "median_seconds": 0.015923399943858385,
+            "mean_seconds": 0.016044228537274257,
+            "p25_seconds": 0.0155981999123469,
+            "p75_seconds": 0.016115150065161288
+          },
+          "combined": {
+            "raw_seconds": [
+              0.2140095999930054,
+              0.19531849981285632,
+              0.2022269000299275,
+              0.18910580012015998,
+              0.20191930001601577,
+              0.18991459999233484,
+              0.18472679983824492
+            ],
+            "median_seconds": 0.19531849981285632,
+            "mean_seconds": 0.19674592854322068,
+            "p25_seconds": 0.1895102000562474,
+            "p75_seconds": 0.20207310002297163
+          },
+          "newton_iterations": [
+            21,
+            21,
+            21,
+            21,
+            21,
+            21,
+            21
+          ],
+          "boundaries": 47,
+          "force_active_edges": 16,
+          "scaled_force_residual": 2.6091703610117963e-14,
+          "driver_work_w": 45639856209.761444,
+          "power_balance_error_w": -7.62939453125e-06,
+          "negative_resisting_work_elements": 0
+        },
+        "effective": {
+          "active_slab_tethers": false,
+          "active_effective_subduction": true,
+          "assembly": {
+            "raw_seconds": [
+              0.16367919999174774,
+              0.1608849000185728,
+              0.16628889995627105,
+              0.1647241001483053,
+              0.1665129999164492,
+              0.191237400053069,
+              0.15959680010564625
+            ],
+            "median_seconds": 0.1647241001483053,
+            "mean_seconds": 0.1675606143128659,
+            "p25_seconds": 0.16228205000516027,
+            "p75_seconds": 0.16640094993636012
+          },
+          "solve": {
+            "raw_seconds": [
+              0.015395099995657802,
+              0.015244900016114116,
+              0.014812699984759092,
+              0.015883699990808964,
+              0.015535300131887197,
+              0.014889300102367997,
+              0.01528559997677803
+            ],
+            "median_seconds": 0.01528559997677803,
+            "mean_seconds": 0.015292371456910456,
+            "p25_seconds": 0.015067100059241056,
+            "p75_seconds": 0.0154652000637725
+          },
+          "combined": {
+            "raw_seconds": [
+              0.17907429998740554,
+              0.17612980003468692,
+              0.18110159994103014,
+              0.18060780013911426,
+              0.1820483000483364,
+              0.206126700155437,
+              0.17488240008242428
+            ],
+            "median_seconds": 0.18060780013911426,
+            "mean_seconds": 0.18285298576977635,
+            "p25_seconds": 0.17760205001104623,
+            "p75_seconds": 0.18157494999468327
+          },
+          "newton_iterations": [
+            22,
+            22,
+            22,
+            22,
+            22,
+            22,
+            22
+          ],
+          "boundaries": 47,
+          "force_active_edges": 16,
+          "scaled_force_residual": 4.311016956901903e-15,
+          "driver_work_w": 10928764693.71998,
+          "power_balance_error_w": -1.9073486328125e-06,
+          "negative_resisting_work_elements": 0
+        }
+      },
+      "evolution": {
+        "detailed_slab": {
+          "timing": {
+            "raw_seconds": [
+              4.012864799937233,
+              5.7718283999711275,
+              5.723971700062975
+            ],
+            "median_seconds": 5.723971700062975,
+            "mean_seconds": 5.169554966657112,
+            "p25_seconds": 4.868418250000104,
+            "p75_seconds": 5.747900050017051
+          },
+          "frames": [
+            {
+              "t_myr": 0.05,
+              "speeds": {
+                "mean_cm_yr": 0.3417824305894933,
+                "max_cm_yr": 0.5123886378101066,
+                "by_plate_mean_cm_yr": {
+                  "0": 0.3885167540173772,
+                  "1": 0.07425320196680404,
+                  "2": 0.46628902165508457,
+                  "3": 0.3683334296650397
+                }
+              },
+              "scaled_force_residual": 1.572918719376299e-10,
+              "power_balance_error_w": -0.03838157653808594,
+              "negative_resisting_work_elements": 0,
+              "ocean_consumed_km2": 1675.4706632574282,
+              "effective_force": null
+            },
+            {
+              "t_myr": 0.1,
+              "speeds": {
+                "mean_cm_yr": 0.48746620104611094,
+                "max_cm_yr": 0.7673407162737669,
+                "by_plate_mean_cm_yr": {
+                  "0": 0.5794666090552887,
+                  "1": 0.2832941629773497,
+                  "2": 0.2998722781447498,
+                  "3": 0.2868201159894842
+                }
+              },
+              "scaled_force_residual": 5.468656275502238e-15,
+              "power_balance_error_w": 3.814697265625e-06,
+              "negative_resisting_work_elements": 0,
+              "ocean_consumed_km2": 3215.7572160335467,
+              "effective_force": null
+            },
+            {
+              "t_myr": 0.15000000000000002,
+              "speeds": {
+                "mean_cm_yr": 0.4440711813945465,
+                "max_cm_yr": 0.6639804928843658,
+                "by_plate_mean_cm_yr": {
+                  "0": 0.49984439832195926,
+                  "1": 0.31737824750082994,
+                  "2": 0.3152065622751396,
+                  "3": 0.3441176314442718
+                }
+              },
+              "scaled_force_residual": 4.9895855524689326e-15,
+              "power_balance_error_w": 0.0,
+              "negative_resisting_work_elements": 0,
+              "ocean_consumed_km2": 4264.949359677568,
+              "effective_force": null
+            }
+          ]
+        },
+        "coupled_lifecycle": {
+          "timing": {
+            "raw_seconds": [
+              5.390674399910495,
+              8.16336870007217,
+              8.576854399871081
+            ],
+            "median_seconds": 8.16336870007217,
+            "mean_seconds": 7.376965833284582,
+            "p25_seconds": 6.777021549991332,
+            "p75_seconds": 8.370111549971625
+          },
+          "frames": [
+            {
+              "t_myr": 0.05,
+              "speeds": {
+                "mean_cm_yr": 0.33232090900361344,
+                "max_cm_yr": 0.5543841505729051,
+                "by_plate_mean_cm_yr": {
+                  "0": 0.37230507119935013,
+                  "1": 0.4338136474492358,
+                  "2": 0.04876276827848524,
+                  "3": 0.041765999733287616
+                }
+              },
+              "scaled_force_residual": 2.735390633234476e-10,
+              "power_balance_error_w": -0.015552520751953125,
+              "negative_resisting_work_elements": 0,
+              "ocean_consumed_km2": 5916.005490568743,
+              "effective_force": null
+            },
+            {
+              "t_myr": 0.1,
+              "speeds": {
+                "mean_cm_yr": 0.3325364955798676,
+                "max_cm_yr": 0.55493812489294,
+                "by_plate_mean_cm_yr": {
+                  "0": 0.37253683021126305,
+                  "1": 0.43422422165076646,
+                  "2": 0.048699709188368266,
+                  "3": 0.04169998454690805
+                }
+              },
+              "scaled_force_residual": 3.314777353358723e-10,
+              "power_balance_error_w": -0.018741607666015625,
+              "negative_resisting_work_elements": 0,
+              "ocean_consumed_km2": 9973.564929709388,
+              "effective_force": null
+            },
+            {
+              "t_myr": 0.15000000000000002,
+              "speeds": {
+                "mean_cm_yr": 0.3327559922599833,
+                "max_cm_yr": 0.5554978481294881,
+                "by_plate_mean_cm_yr": {
+                  "0": 0.3727728017927474,
+                  "1": 0.43464009297293416,
+                  "2": 0.0486376972571386,
+                  "3": 0.04163508086303161
+                }
+              },
+              "scaled_force_residual": 3.9954680863140283e-10,
+              "power_balance_error_w": -0.022480010986328125,
+              "negative_resisting_work_elements": 0,
+              "ocean_consumed_km2": 14034.130536947458,
+              "effective_force": null
+            }
+          ]
+        },
+        "effective": {
+          "timing": {
+            "raw_seconds": [
+              3.8680954000446945,
+              4.838419100036845,
+              4.73561149998568
+            ],
+            "median_seconds": 4.73561149998568,
+            "mean_seconds": 4.480708666689073,
+            "p25_seconds": 4.301853450015187,
+            "p75_seconds": 4.787015300011262
+          },
+          "frames": [
+            {
+              "t_myr": 0.05,
+              "speeds": {
+                "mean_cm_yr": 0.3093259823221671,
+                "max_cm_yr": 0.4574820358396854,
+                "by_plate_mean_cm_yr": {
+                  "0": 0.3473416341124716,
+                  "1": 0.08164212059587013,
+                  "2": 0.42019050954396064,
+                  "3": 0.342805217068673
+                }
+              },
+              "scaled_force_residual": 4.311016956901903e-15,
+              "power_balance_error_w": -1.9073486328125e-06,
+              "negative_resisting_work_elements": 0,
+              "ocean_consumed_km2": 1426.968397752502,
+              "effective_force": {
+                "version": 1,
+                "enabled": true,
+                "force_n_per_m": 5000000000000.0,
+                "initial_trenches": 1,
+                "initial_trench_length_km": 22231.356223682866,
+                "selection": {
+                  "candidate_length_km": 41768.22132016207,
+                  "selected_length_km": 22231.356223682866,
+                  "candidate_components": 3,
+                  "selected_components": 1,
+                  "target_margin_fraction": 0.45,
+                  "selection_seed": 5
+                },
+                "initial_slab_inventory_created": false,
+                "closure": "One-sided horizontal traction on the incoming plate; unresolved slab/mantle reservoir supplies the reaction and power.",
+                "evolution": "Declared traces persist through stall and opening; only actual oceanic convergence permits intake.",
+                "limitations": "No resolved slab energetics, spontaneous initiation, breakoff, or independent trench rollback."
+              }
+            },
+            {
+              "t_myr": 0.1,
+              "speeds": {
+                "mean_cm_yr": 0.36132549011711157,
+                "max_cm_yr": 0.470902286835557,
+                "by_plate_mean_cm_yr": {
+                  "0": 0.3542679071721115,
+                  "1": 0.3708088022052885,
+                  "2": 0.38867187224990124,
+                  "3": 0.3768161547769093
+                }
+              },
+              "scaled_force_residual": 5.804408123232181e-10,
+              "power_balance_error_w": -0.3114910125732422,
+              "negative_resisting_work_elements": 0,
+              "ocean_consumed_km2": 1533.871527687733,
+              "effective_force": {
+                "version": 1,
+                "enabled": true,
+                "force_n_per_m": 5000000000000.0,
+                "initial_trenches": 1,
+                "initial_trench_length_km": 22231.356223682866,
+                "selection": {
+                  "candidate_length_km": 41768.22132016207,
+                  "selected_length_km": 22231.356223682866,
+                  "candidate_components": 3,
+                  "selected_components": 1,
+                  "target_margin_fraction": 0.45,
+                  "selection_seed": 5
+                },
+                "initial_slab_inventory_created": false,
+                "closure": "One-sided horizontal traction on the incoming plate; unresolved slab/mantle reservoir supplies the reaction and power.",
+                "evolution": "Declared traces persist through stall and opening; only actual oceanic convergence permits intake.",
+                "limitations": "No resolved slab energetics, spontaneous initiation, breakoff, or independent trench rollback."
+              }
+            },
+            {
+              "t_myr": 0.15000000000000002,
+              "speeds": {
+                "mean_cm_yr": 0.3613346077832843,
+                "max_cm_yr": 0.47091384655093327,
+                "by_plate_mean_cm_yr": {
+                  "0": 0.35427747905861884,
+                  "1": 0.37081649692633895,
+                  "2": 0.38868662368148044,
+                  "3": 0.37681849699446324
+                }
+              },
+              "scaled_force_residual": 1.5114848761215951e-13,
+              "power_balance_error_w": -6.67572021484375e-05,
+              "negative_resisting_work_elements": 0,
+              "ocean_consumed_km2": 1640.7732907356465,
+              "effective_force": {
+                "version": 1,
+                "enabled": true,
+                "force_n_per_m": 5000000000000.0,
+                "initial_trenches": 1,
+                "initial_trench_length_km": 22231.356223682866,
+                "selection": {
+                  "candidate_length_km": 41768.22132016207,
+                  "selected_length_km": 22231.356223682866,
+                  "candidate_components": 3,
+                  "selected_components": 1,
+                  "target_margin_fraction": 0.45,
+                  "selection_seed": 5
+                },
+                "initial_slab_inventory_created": false,
+                "closure": "One-sided horizontal traction on the incoming plate; unresolved slab/mantle reservoir supplies the reaction and power.",
+                "evolution": "Declared traces persist through stall and opening; only actual oceanic convergence permits intake.",
+                "limitations": "No resolved slab energetics, spontaneous initiation, breakoff, or independent trench rollback."
+              }
+            }
+          ],
+          "material_displacement": {
+            "comparable": false,
+            "initial_points": 787,
+            "final_points": 2016
+          },
+          "omega_changed": true,
+          "inventory_after": {
+            "slab_fed_area_km2": 0.0,
+            "slab_retained_area_km2": 0.0,
+            "slab_retained_buoyancy_area_km2": 0.0,
+            "slab_retired_area_km2": 0.0,
+            "slab_initial_excess_mass_kg": 0.0,
+            "slab_fed_excess_mass_kg": 0.0,
+            "slab_retained_excess_mass_kg": 0.0,
+            "slab_retired_excess_mass_kg": 0.0,
+            "slab_initial_area_km2": 0.0
+          }
+        }
+      },
+      "baseline_over_effective_median_ratio": {
+        "detailed_slab": {
+          "assembly": 1.0741937567171689,
+          "solve": 1.167988171784099,
+          "combined": 1.0772713019703073,
+          "whole_step": 1.2087080412065652
+        },
+        "coupled_lifecycle": {
+          "assembly": 1.0936444621496741,
+          "solve": 1.041725543521308,
+          "combined": 1.0814510761019793,
+          "whole_step": 1.7238256770211946
+        }
+      },
+      "restart": {
+        "bitwise_agreement": {
+          "omega": true,
+          "plate": true,
+          "support": true,
+          "age": true,
+          "pos": true,
+          "mass": true,
+          "material_vertices": true,
+          "trench_systems": true,
+          "plate_balance_diagnostics": true,
+          "effective_snapshot_before": true
+        },
+        "all_equal": true,
+        "resumed_to_myr": 0.2
+      }
+    }
+  ],
+  "mixed_carrier_startup": {
+    "config": {
+      "width": 48,
+      "height": 24,
+      "mesh_level": 4,
+      "coast_geometry_level": 2,
+      "plate_count": 4,
+      "mechanics_nodes": 128,
+      "seed": 37,
+      "physics_profile": "reviewed_v1",
+      "subduction_response": "fixed_trench",
+      "primordial_subduction": {
+        "enabled": true
+      },
+      "primordial_ocean": {
+        "enabled": true,
+        "continental_attachments": [
+          {
+            "region_index": 1,
+            "continental_plate_uid": 3
+          }
+        ]
+      },
+      "effective_subduction": {
+        "enabled": true,
+        "force_n_per_m": 5000000000000.0
+      }
+    },
+    "initialization_seconds": 3.81526149995625,
+    "native_cells": 5120,
+    "mixed_carrier_uid": 3,
+    "mixed_plate_name": "Continental block 02",
+    "initial": {
+      "speeds": {
+        "mean_cm_yr": 0.511146813090068,
+        "max_cm_yr": 2.9026623746664493,
+        "by_plate_mean_cm_yr": {
+          "0": 0.1256894995904655,
+          "1": 0.05473628909108147,
+          "2": 0.05014855619895588,
+          "3": 0.04082520332329196,
+          "4": 2.318380708251077,
+          "5": 1.064221530579162
+        }
+      },
+      "inventory": {
+        "slab_fed_area_km2": 0.0,
+        "slab_retained_area_km2": 0.0,
+        "slab_retained_buoyancy_area_km2": 0.0,
+        "slab_retired_area_km2": 0.0,
+        "slab_initial_excess_mass_kg": 0.0,
+        "slab_fed_excess_mass_kg": 0.0,
+        "slab_retained_excess_mass_kg": 0.0,
+        "slab_retired_excess_mass_kg": 0.0,
+        "slab_initial_area_km2": 0.0
+      },
+      "ocean_consumed_km2": 0.0,
+      "direct_incoming_torque_n_m": 9.947453473379876e+25,
+      "mixed_plate_omega": [
+        6.483677061794836e-05,
+        -8.524479060529315e-05,
+        -8.125582206911378e-06
+      ],
+      "incoming_trenches": 2
+    },
+    "elapsed_myr": 0.02,
+    "original_continental_markers": 206,
+    "retained_markers": 206,
+    "continental_marker_displacement": {
+      "comparable": true,
+      "mean_km": 0.00890751937761358,
+      "max_km": 0.018232720414311506
+    },
+    "final_inventory": {
+      "slab_fed_area_km2": 0.0,
+      "slab_retained_area_km2": 0.0,
+      "slab_retained_buoyancy_area_km2": 0.0,
+      "slab_retired_area_km2": 0.0,
+      "slab_initial_excess_mass_kg": 0.0,
+      "slab_fed_excess_mass_kg": 0.0,
+      "slab_retained_excess_mass_kg": 0.0,
+      "slab_retired_excess_mass_kg": 0.0,
+      "slab_initial_area_km2": 0.0
+    },
+    "restart": {
+      "bitwise_agreement": {
+        "omega": true,
+        "plate": true,
+        "support": true,
+        "age": true,
+        "pos": true,
+        "mass": true,
+        "material_vertices": true,
+        "trench_systems": true,
+        "plate_balance_diagnostics": true,
+        "effective_snapshot_before": true
+      },
+      "all_equal": true,
+      "resumed_to_myr": 0.02
+    },
+    "interpretation": "Direct offshore trench traction acts on the same carrier plate as the measured continental markers; no velocity or basal driving force is supplied."
+  },
+  "qualification": {
+    "passed": true,
+    "checks": {
+      "measurement_execution_succeeded": true,
+      "native_measurements_present": true,
+      "measurement_0_level_2_initial_geometry_preserved": true,
+      "measurement_0_level_2_motion_from_rest": true,
+      "measurement_0_level_2_no_fake_elapsed_time": true,
+      "measurement_0_level_2_no_initial_ocean_consumption": true,
+      "measurement_0_level_2_no_initial_slab_inventory": true,
+      "measurement_0_level_2_effective_and_coupled_laws_selected": true,
+      "measurement_0_level_2_effective_frozen_force_and_passivity_accepted": true,
+      "measurement_0_level_2_effective_frozen_power_closes": true,
+      "measurement_0_level_2_effective_steps_force_and_passivity_accepted": true,
+      "measurement_0_level_2_no_evolved_slab_inventory": true,
+      "measurement_0_level_2_bitwise_restart": true,
+      "mixed_carrier_measurement_present": true,
+      "mixed_direct_offshore_torque": true,
+      "mixed_continental_markers_retained": true,
+      "mixed_continental_material_moved": true,
+      "mixed_no_initial_slab_inventory": true,
+      "mixed_no_evolved_slab_inventory": true,
+      "mixed_no_initial_ocean_consumption": true,
+      "mixed_bitwise_restart": true
+    },
+    "errors": []
+  },
+  "qualification_reviewed_utc": "2026-10-02T15:52:12.642299+00:00"
+}

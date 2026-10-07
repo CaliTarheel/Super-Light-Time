@@ -1,0 +1,38 @@
+{
+  "checkpoint_sha256": "d63d6cf3c466899153702c9827710196dceadb3452d84fdc2bb04740a7ae392f",
+  "failure_receipt_sha256": "1e301761402066b6a25c4f1c254e5d73ef20d10741f11880ab64acd223e9c9aa",
+  "control_id": 31,
+  "control_triangle": [
+    [
+      0.0,
+      -0.5257311121191336,
+      0.85065080835204
+    ],
+    [
+      -0.010167706728583794,
+      -0.5375570067266912,
+      0.8431661059713689
+    ],
+    [
+      0.010167706728583794,
+      -0.5375570067266912,
+      0.8431661059713689
+    ]
+  ],
+  "chart_polygon": [
+    [
+      "0",
+      "0"
+    ],
+    [
+      "1",
+      "0"
+    ],
+    [
+      "0",
+      "1"
+    ]
+  ],
+  "saved_area_m2": 5776371744.319006,
+  "scope": "Original control31 uncovered piece. The native16..31 batch failed an aggregate compensated transform; this fixture reproduces its exact-axis frame artifact independently."
+}

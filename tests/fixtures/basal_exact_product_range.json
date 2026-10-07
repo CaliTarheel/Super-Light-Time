@@ -1,0 +1,68 @@
+{
+  "fixture_sha256": "f413cb31250b609a6203ebc82cf6b977894f29510c552407b41a08435a004523",
+  "cases": [
+    {
+      "index": [
+        120,
+        1
+      ],
+      "a": -0.5309734806310727,
+      "b": -2.7127846716315595e-279,
+      "exponent_sum": -925,
+      "exact_product": "1.440416719298830912972886908719601303707168556372898023423005595588944681642442274574080946781894446E-279",
+      "nearest_high": 1.440416719298831e-279,
+      "nearest_low": -7.194377197877991e-296,
+      "remainder": "0",
+      "remainder_min_subnormal_units": "0",
+      "exact_two_binary64": true,
+      "relative_remainder": "0",
+      "captured_row_a": [
+        0.0,
+        -0.5309734806310727,
+        -0.8473884368260661
+      ],
+      "captured_row_b": [
+        -2.7127846716315595e-279,
+        -2.7127846716315595e-279,
+        -2.7127846716315595e-279
+      ],
+      "captured_row_dot": "3.739199081638411232138150708730667849350111412716619424145355518005804439017640254235291851284233001E-279",
+      "captured_row_dot_hi": 3.739199081638411e-279,
+      "captured_row_dot_lo": -7.34031419190859e-296,
+      "captured_row_dot_remainder": "0",
+      "row_caveat": "This captured array is one scalar term in the 12-term frame pullback, not a complete frame-dot input."
+    },
+    {
+      "index": [
+        120,
+        2
+      ],
+      "a": -0.8473884368260661,
+      "b": -2.7127846716315595e-279,
+      "exponent_sum": -925,
+      "exact_product": "2.298782362339580319165263800011066545642942856343721400722349922416859757375197979661210904502338555E-279",
+      "nearest_high": 2.29878236233958e-279,
+      "nearest_low": 1.9426019646682026e-295,
+      "remainder": "0",
+      "remainder_min_subnormal_units": "0",
+      "exact_two_binary64": true,
+      "relative_remainder": "0",
+      "captured_row_a": [
+        0.0,
+        -0.5309734806310727,
+        -0.8473884368260661
+      ],
+      "captured_row_b": [
+        -2.7127846716315595e-279,
+        -2.7127846716315595e-279,
+        -2.7127846716315595e-279
+      ],
+      "captured_row_dot": "3.739199081638411232138150708730667849350111412716619424145355518005804439017640254235291851284233001E-279",
+      "captured_row_dot_hi": 3.739199081638411e-279,
+      "captured_row_dot_lo": -7.34031419190859e-296,
+      "captured_row_dot_remainder": "0",
+      "row_caveat": "This captured array is one scalar term in the 12-term frame pullback, not a complete frame-dot input."
+    }
+  ],
+  "scope": "Original exceptional product lanes from native48..63 batch; no full-dot representability inference."
+}

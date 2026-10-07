@@ -1,0 +1,15 @@
+name: gospl
+channels:
+  - geodels
+  - conda-forge
+dependencies:
+  - gospl=2026.7.14
+  - python=3.12
+  - numpy>=1.26.4,<2
+  - petsc>=3.21,<3.22
+  - petsc4py>=3.21,<3.22
+  - openmpi>=4.1.6,<5
+  - h5py=*=mpi_openmpi*
+  - hdf5=*=mpi_openmpi*
+  - netcdf4
+  - pillow

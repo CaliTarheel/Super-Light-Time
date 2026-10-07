@@ -1,0 +1,14 @@
+{
+  "volume_rtol": 1e-10,
+  "volume_atol_km3": 1e-6,
+  "rest_position_rad": 5e-12,
+  "rest_thickness_km": 1e-8,
+  "sheet_residual": 1e-8,
+  "passive_power_rtol": 1e-10,
+  "passive_power_atol_w": 1e-8,
+  "swap_position_rad": 1e-8,
+  "swap_thickness_km": 1e-6,
+  "refinement_rtol": 0.02,
+  "refinement_thickness_floor_km": 0.01,
+  "refinement_displacement_floor_km": 1.0
+}

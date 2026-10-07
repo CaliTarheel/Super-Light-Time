@@ -1,0 +1,197 @@
+    def _open_numerical_budget(self, source_time, requested_dt):
+        active = dict(kind='coarse_history_active_interval', version=2, active=True,
+            phase='physical', run_id=self.current['run_id'], pid=os.getpid(),
+            token=self._next_numerical_token, source_time_myr=float(source_time),
+            requested_dt_myr=float(requested_dt), budget=budget.snapshot(),
+            started_at_utc=datetime.now(timezone.utc).isoformat())
+        if budget.snapshot() != self._next_numerical_budget:
+            raise ValueError('Controller interval clock was replaced')
+        self._active_numerical_budget = active
+        self._interval_first_frame = len(self.current['frames'])
+        self._pending_checkpoint = None
+        write_json(self.path()/'numerical-budget-active.json', active)
+
+    @staticmethod
+    def _output_reference(path):
+        path = Path(path)
+        with path.open('rb') as stream:
+            digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+        return dict(path=str(path.resolve()), sha256=digest)
+
+    def _finish_numerical_budget(self, source_time, requested_dt, simulation):
+        active = dict(self._active_numerical_budget)
+        token = active['token']
+        pending = self._pending_checkpoint
+        if not pending or pending['manifest']['checkpoint_time_myr'] != float(simulation.t):
+            raise ValueError('Interval has no complete immutable checkpoint')
+        checkpoint_ref = self._output_reference(pending['path'])
+        checkpoint_ref['time_myr'] = float(simulation.t)
+        frames = []
+        for row in self.current['frames'][self._interval_first_frame:]:
+            index = row['index']
+            frames.append(dict(index=index, time_myr=row['time_myr'],
+                npz=self._output_reference(self.path()/('frame_%04d.npz'%index)),
+                json=self._output_reference(self.path()/('frame_%04d.json'%index))))
+        budget.require_finalization_time('immutable_outputs_hashed')
+        report = dict(kind='lite_budgeted_history_interval', version=2,
+            run_id=self.current['run_id'], token=token, source_time_myr=source_time,
+            destination_time_myr=float(simulation.t), requested_dt_myr=requested_dt,
+            interval_and_required_output_completed=True, budget=budget.snapshot(),
+            checkpoint=checkpoint_ref, frames=frames, evidence=budget.evidence(),
+            completed_at_perf_counter=time.perf_counter(), error=None)
+        path = self.path()/'numerical-budget'/token/'completion.json'
+        if path.exists():
+            raise ValueError('Interval completion already exists; no retry or clock renewal')
+        write_json(path, report)
+        completion = self._output_reference(path)
+        budget.require_finalization_time('completion_receipt_written')
+        active.update(phase='awaiting_guardian', completion=completion)
+        write_json(self.path()/'numerical-budget-active.json', active)
+        acknowledgement = Path(self._guardian_directory)/('accepted-interval-'+token+'.json')
+        while not acknowledgement.is_file():
+            budget.require_finalization_time('guardian_acceptance_wait')
+            time.sleep(.025)
+        accepted = json.loads(acknowledgement.read_bytes())
+        if (accepted.get('kind') != 'guardian_accepted_interval' or accepted.get('token') != token
+                or accepted.get('run_id') != self.current['run_id']
+                or accepted.get('control_sha256') != self._guardian_control_sha256
+                or accepted.get('budget') != budget.snapshot()
+                or accepted.get('completion') != completion or accepted.get('checkpoint') != checkpoint_ref):
+            raise ValueError('Guardian acceptance identity differs')
+        budget.require_finalization_time('guardian_acceptance_received')
+        with self.lock:
+            terminal = simulation.t >= float(simulation.config['duration_myr'])-1e-8
+            paused = bool(self.pause_requested.is_set() or self.stop.is_set()) and not terminal
+            self._resume_checkpoint_name = str(Path(pending['path']).relative_to(self.path())).replace('\\','/')
+            self.current.update(checkpoint_version=CHECKPOINT_VERSION,
+                checkpoint_time_myr=float(simulation.t), integration_time_myr=float(simulation.t),
+                next_output_myr=pending['manifest']['next_output_myr'],
+                state='complete' if terminal else ('paused' if paused else 'running'),
+                can_resume=paused,
+                accepted_checkpoint_file=self._resume_checkpoint_name,
+                guardian_acceptance_directory=str(self._guardian_directory),
+                guardian_control_sha256=self._guardian_control_sha256,
+                guardian_acceptance_file=str(acknowledgement), numerical_budget_record=str(path.relative_to(self.path())),
+                numerical_budget=report, eta_seconds=None)
+            self.current.update(self.timing.update(min(float(simulation.config['duration_myr']),float(simulation.t))))
+            if terminal or paused:
+                self.current.update(self.timing.finish() if terminal else self.timing.pause())
+            self.current['eta_seconds'] = None
+            self.persist()
+        active.update(active=False, phase='accepted', interval_and_required_output_completed=True,
+            guardian_acceptance=self._output_reference(acknowledgement),
+            paused=paused, complete=terminal)
+        budget.require_finalization_time('accepted_pointer_written')
+        acceptance_path = path.with_name('accepted.json')
+        write_json(acceptance_path,dict(kind='server_observed_guardian_acceptance',version=1,
+            run_id=self.current['run_id'],token=token,budget=budget.snapshot(),completion=completion,
+            guardian_acceptance=active['guardian_acceptance'],checkpoint=checkpoint_ref,
+            observed_at_perf_counter=time.perf_counter()))
+        budget.require_finalization_time('acceptance_readback')
+        active['server_acceptance'] = self._output_reference(acceptance_path)
+        write_json(self.path()/'numerical-budget-active.json', active)
+        budget.require_finalization_time('server_acceptance_published')
+        release_path = Path(self._guardian_directory)/('closed-interval-'+token+'.json')
+        while not release_path.is_file():
+            budget.require_finalization_time('guardian_closure_wait')
+            time.sleep(.025)
+        release = json.loads(release_path.read_bytes())
+        if (release.get('kind') != 'guardian_closed_interval' or release.get('token') != token
+                or release.get('run_id') != self.current['run_id']
+                or release.get('control_sha256') != self._guardian_control_sha256
+                or release.get('budget') != budget.snapshot()
+                or release.get('guardian_acceptance') != active['guardian_acceptance']
+                or release.get('server_acceptance') != active['server_acceptance']
+                or release.get('checkpoint') != checkpoint_ref):
+            raise ValueError('Guardian interval closure differs')
+        budget.require_finalization_time('guardian_closure_received')
+        self._next_numerical_budget = accepted.get('next_budget')
+        self._next_numerical_token = accepted.get('next_interval_token')
+        return accepted
+
+    def _run_owned(self, config, initial, resuming=False):
+        initial_scope = budget.installed(self._initial_numerical_budget)
+        initial_scope.__enter__()
+        self._next_numerical_budget = self._initial_numerical_budget
+        self._next_numerical_token = self._initial_numerical_token
+        try:
+            if not resuming:
+                raise ValueError('Guarded successor requires its prepared checkpoint')
+            budget.require_physical_time('resume_checkpoint_decode')
+            simulation, resume_manifest = read_checkpoint(self.path()/self._resume_checkpoint_name,
+                self.compatibility(), Simulation)
+            budget.require_physical_time('resume_checkpoint_decode:completed')
+            with self.lock:
+                self.current['state'] = 'running'
+            stop = float(config['duration_myr'])
+            cadence = float(config['snapshot_myr'])
+            next_output = resume_manifest['next_output_myr']
+            while simulation.t < stop-1e-8 and not self.stop.is_set() and not self.pause_requested.is_set():
+                dt = min(1., config['dt_myr'], next_output-simulation.t, stop-simulation.t)
+                source_time = float(simulation.t)
+                supplied = self._next_numerical_budget
+                if supplied is None or supplied['dt_myr'] != dt:
+                    raise ValueError('Controller interval length differs from native scheduler')
+                with budget.installed(supplied):
+                    self._open_numerical_budget(source_time, dt)
+                    budget.require_physical_time('server_interval')
+                    budget.record('server_interval', event='entry', source_time_myr=source_time, dt_myr=dt)
+                    simulation.step(dt)
+                    if not math.isclose(float(simulation.t)-source_time,dt,rel_tol=1e-10,abs_tol=1e-10):
+                        raise ValueError('Interval did not complete its requested physical time')
+                    budget.require_finalization_time('required_output')
+                    if simulation.t >= next_output-1e-8:
+                        self._append_snapshot(simulation)
+                        next_output = min(stop,next_output+cadence)
+                    # A pause during the interval uses this same immutable checkpoint;
+                    # it never creates an off-cadence frame or a fresh output clock.
+                    self._commit_checkpoint(simulation,next_output,
+                        paused=bool(self.pause_requested.is_set() or self.stop.is_set()))
+                    if simulation.t >= stop-1e-8 and self.current['frame_count']:
+                        budget.require_finalization_time('final_output')
+                        self.save_final(self.frame(self.current['frame_count']-1))
+                    budget.require_finalization_time('required_output:completed')
+                    self._finish_numerical_budget(source_time,dt,simulation)
+                if initial_scope is not None:
+                    initial_scope.__exit__(None,None,None)
+                    initial_scope = None
+            # Required terminal/pause output and status were closed inside _finish.
+        except (Exception,budget.BudgetExhausted) as error:
+            import traceback
+            traceback.print_exc()
+            active = dict(getattr(self,'_active_numerical_budget',{}))
+            active.update(active=False,phase='incomplete',interval_and_required_output_completed=False,
+                error=dict(type=type(error).__name__,message=str(error)))
+            write_json(self.path()/'numerical-budget-active.json',active)
+            with self.lock:
+                self.current.update(state='error',can_resume=False,error=str(error),eta_seconds=None)
+                self.current.update(self.timing.pause())
+                self.persist()
+        finally:
+            if initial_scope is not None:
+                initial_scope.__exit__(None,None,None)
+
+    def _commit_checkpoint(self, simulation, next_output, paused=False):
+        budget.require_finalization_time('checkpoint')
+        active = self._active_numerical_budget
+        directory = self.path()/'numerical-budget'/active['token']
+        directory.mkdir(exist_ok=True,parents=True)
+        path = directory/'checkpoint.npz'
+        if path.exists():
+            raise ValueError('Immutable checkpoint already exists')
+        with self.lock:
+            committed = native(self.current)
+            committed.update(state='paused' if paused else 'interrupted',can_resume=True,
+                checkpoint_version=CHECKPOINT_VERSION,checkpoint_time_myr=float(simulation.t),
+                time_myr=float(simulation.t),integration_time_myr=float(simulation.t),
+                progress=min(1.,simulation.t/simulation.config['duration_myr']),next_output_myr=next_output,
+                accepted_checkpoint_file=str(path.relative_to(self.path())).replace('\\','/'),
+                guardian_acceptance_directory=str(self._guardian_directory),
+                guardian_control_sha256=self._guardian_control_sha256,
+                guardian_acceptance_file=str(Path(self._guardian_directory)/('accepted-interval-'+active['token']+'.json')),
+                eta_seconds=None)
+            committed.pop('error',None)
+        write_checkpoint(path,simulation,committed,self.compatibility())
+        budget.require_finalization_time('checkpoint:written')
+        self._pending_checkpoint = dict(path=str(path),manifest=committed)
+        return committed

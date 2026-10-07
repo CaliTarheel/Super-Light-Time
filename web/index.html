@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101a21">
+  <title>Deep Time Lite · Tectonic laboratory</title>
+  <link rel="stylesheet" href="/style.css?v=globe-playback-1">
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="/" aria-label="Deep Time Lite home"><span class="brand-mark" aria-hidden="true">◒</span><span>DEEP TIME LITE<small>SPHERICAL MESH LABORATORY</small></span></a>
+    <div class="header-note"><span class="live-dot"></span> LOCAL PLANETARY SIMULATION</div>
+    <button class="text-button" id="about-button" title="About this model">Model notes <span aria-hidden="true">↗</span></button>
+  </header>
+
+  <main class="workspace">
+    <aside class="control-panel">
+      <div class="section-heading"><span class="eyebrow">01 / EXPERIMENT</span><span class="subtle-badge">EARTH SCALE</span></div>
+      <h1>A billion years.<br><span>Your starting world.</span></h1>
+      <p class="intro">Watch continents separate, oceans close, and mountain belts emerge.</p>
+      <form id="config-form">
+        <label class="field">Physics setup<select id="physics_profile" name="physics_profile"><option value="reviewed_v1" selected>Force balance · revised physics</option><option value="legacy">Legacy dynamics</option></select></label>
+        <div id="advanced-physics-controls">
+          <label class="field">Subduction force law<select id="subduction-force-law"><option value="slab">Retained slab physics</option><option value="effective" selected>Lite · effective trench force</option></select></label>
+          <div id="effective-subduction-controls" hidden>
+            <label class="field">Pull per metre of active trench <span class="unit">10¹² N/m</span><input id="effective-subduction-force" type="number" min="0" step="any" value="5"></label>
+            <label class="design-toggle"><input id="effective-force-rifting" type="checkbox"> Breakup from plate forces</label>
+            <p class="hint">Tests internal tension from the shared force ledger, including opposing pulls that cancel plate rotation. The existing material-strength and viable-cut rules still decide whether breakup can occur.</p>
+            <p class="hint">5 means 5 × 10¹² N/m. Declared trenches pull their incoming plates even from rest; motion follows force balance. Opposing pulls can cancel. Slab depth, breakoff and upper-plate suction are omitted.</p>
+            <p class="hint">For the next new run, this law replaces detailed slab entry, slab-driven rift traction and rollback behavior. Your starting map, plate connections and declared trench selection are retained. Existing histories keep their recorded law.</p>
+          </div>
+          <label class="field" id="subduction-response-field">Subduction response<select id="subduction_response" name="subduction_response"><option value="fixed_trench">Historical fixed trench</option><option value="moving_hinge_v1">Moving trench · overriding response</option></select></label>
+          <label class="field" id="retained-phases-field">Dense crust<select id="retained_phases" name="retained_phases"><option value="disabled">Immediate foundering · historical</option><option value="thermal_v1" selected>Retained · temperature dependent</option></select></label>
+          <label class="design-toggle"><input id="enhanced-rifting-enabled" type="checkbox" checked> Inherited rift weakness · enhanced rifting</label>
+          <details class="advanced-controls">
+            <summary>Rift inheritance <span aria-hidden="true">+</span></summary>
+            <label class="field">Weakness seed<input id="enhanced-rifting-seed" type="number" min="0" max="4294967295" step="1" value="37"></label>
+            <label class="field">Initial weakening, maximum (fraction of strength)<input id="enhanced-rifting-amplitude" type="number" min="0" max="0.6" step="any" value="0.25"></label>
+            <label class="field">Weakness pattern length scale <span class="unit">km</span><input id="enhanced-rifting-correlation" type="number" min="100" max="2000" step="any" value="350"></label>
+            <label class="field">Deformable craton rim <span class="unit">km</span><input id="enhanced-rifting-craton-margin" type="number" min="0" max="400" step="any" value="150"></label>
+            <p class="hint">Ordinary continental crust (not cratons, not ocean) starts with a smooth seeded pattern of inherited weakness. At the default 0.25 it is up to 25% weaker, about 12.5% on average. Rift damage leaves a durable scar of up to 50% weaker that outlasts the damage itself, so crust that has broken breaks again. The length scale sets the pattern size: at 350 km, points 350 km apart are still similar, the pattern is unrelated by about 1,100 km (about 550 pixels on a 2 km/pixel map), and weak and strong regions alternate over roughly 1,000–1,500 km. Every world with the same weakness seed gets the same pattern; change the seed for a different inheritance. Craton interiors stay rigid behind a deformable rim (150 km, about 75 pixels). Rupture is judged on realized stretching of material links against a numerical breakup gate (hand-set, under review) rather than the coarse loading proxy. Enhanced rifting alone does not cure slow continental breakup.</p>
+          </details>
+        </div>
+        <div id="primordial-subduction-controls">
+          <label class="design-toggle"><input id="primordial-subduction-enabled" type="checkbox" checked> Start the primordial ocean with subduction margins</label>
+          <label class="field" id="primordial-slab-depth-field">Initial slab depth (km)<input id="primordial-slab-depth" type="number" min="1" max="660" step="any" value="100"></label>
+          <label class="field">Target share of eligible trench length <span class="unit">fraction</span><input id="primordial-margin-fraction" type="number" min="0.05" max="1" step="any" value="1"></label>
+          <label class="field">Trench selection seed<input id="primordial-selection-seed" type="number" min="0" max="4294967295" step="1" value="0"></label>
+          <p class="hint" id="primordial-subduction-note">Oceanic lithosphere starts beneath adjoining continental plates at a 50° dip. The depth is an initial-condition choice; the force balance determines subsequent motion. A target below 1 selects whole connected trench arcs, so the realized share can exceed the target.</p>
+        </div>
+        <div id="primordial-ocean-controls">
+          <label class="design-toggle"><input id="primordial-ocean-enabled" type="checkbox"> Start with several ocean plates and ridges</label>
+          <label class="field">Initial ocean regions<input id="primordial-ocean-count" type="number" min="2" max="8" step="1" value="4"></label>
+          <p class="hint">Preserves the land map and continental blocks. Adds boundaries within the ocean; each region has an independent plate unless a saved connection attaches it to a continent. Motion follows the force balance.</p>
+          <details class="advanced-controls">
+            <summary>Initial seafloor ages <span aria-hidden="true">+</span></summary>
+            <label class="field">Age-gradient reference speed (cm/year)<input id="primordial-ocean-age-rate" type="number" min="0.1" max="20" step="any" value="2"></label>
+            <label class="field">Oldest initial seafloor (Myr)<input id="primordial-ocean-max-age" type="number" min="1" max="300" step="any" value="180"></label>
+            <p class="hint">Seafloor age increases with distance from the initial ridges. The reference speed defines those starting ages; it does not prescribe how fast plates move during the run.</p>
+          </details>
+        </div>
+        <div id="ocean-attachment-controls" hidden>
+          <p class="hint" id="ocean-attachment-summary" role="status"></p>
+          <button type="button" id="remove-ocean-attachments" class="text-button">Remove saved ocean–continent connections</button>
+        </div>
+        <p class="hint" id="physics-profile-note">Force-balanced plate motion and conservative collision and crust budgets. A fresh painted world has no inherited slabs, so initial motion may be very slow.</p>
+        <div class="field-row">
+          <label>Random seed<input id="seed" name="seed" type="number" min="0" max="4294967295" step="1" value="12"></label>
+          <label>Target initial plates<input id="plate_count" name="plate_count" type="number" min="4" max="24" step="1" value="12"></label>
+        </div>
+        <p class="hint initial-plate-note">One moving ocean plate initially surrounds continental fragments and can develop new boundaries under sustained loading. The actual count can be lower where intact cratons leave no suitable fracture.</p>
+        <label class="field">Tectonic mesh<select id="mesh_level" name="mesh_level"><option value="2">320 cells · geometry check</option><option value="3">1,280 cells · quick draft</option><option value="4" selected>5,120 cells · balanced</option><option value="5">20,480 cells · detailed</option><option value="6">81,920 cells · advanced</option></select></label>
+        <label class="field">Starting coastline detail<select id="coast_geometry_level" name="coast_geometry_level"><option value="2">Follow tectonic mesh</option><option value="4" selected>Level 4 · balanced coastlines</option><option value="5">Level 5 · detailed coastlines</option><option value="6">Level 6 · advanced coastlines</option></select></label>
+        <p class="hint">Capture more of the painted outline around continental edges while keeping rigid interiors simpler. Starts at least as detailed as the tectonic mesh; applies to new experiments.</p>
+        <label class="field">Adaptive detail<select id="adaptive_refinement" name="adaptive_refinement"><option value="0">Off · keep starting detail</option><option value="1" selected>Level 1 · balanced</option><option value="2">Level 2 · detailed</option><option value="3">Level 3 · advanced</option></select></label>
+        <p class="hint">Add detail where crust is deforming while keeping quiet interiors simpler. Higher levels use more memory and time.</p>
+        <label class="field">Review map<select id="width" name="width"><option value="128">128 × 64 · quick draft</option><option value="192">192 × 96 · draft</option><option value="256">256 × 128 · draft</option><option value="512" selected>512 × 256 · standard</option><option value="1024">1,024 × 512 · high</option><option value="2048">2,048 × 1,024 · advanced</option></select></label>
+        <p class="hint resolution-hint" id="grid-resolution-note">Display pixels and tectonic control cells have different resolutions. Material geometry is tracked separately.</p>
+        <p class="hint resolution-cost" id="grid-cost-note"></p>
+        <div class="field-row">
+          <label>Duration <span class="unit">Myr</span><input id="duration_myr" name="duration_myr" type="number" min="1" max="1000" step="1" value="1000"></label>
+          <label>Save every <span class="unit">Myr</span><input id="snapshot_myr" name="snapshot_myr" type="number" min="2" max="100" step="0.5" value="2"></label>
+        </div>
+        <details class="advanced-controls">
+          <summary>Process parameters <span aria-hidden="true">+</span></summary>
+          <label class="field small-field">Time step <span class="unit">Myr</span><input id="dt_myr" name="dt_myr" type="number" min="0.5" max="5" step="0.5" value="2"></label>
+          <label class="field">Continental deformation<select id="deforming_regions" name="deforming_regions"><option value="1" selected>Deforming belts and rigid interiors</option><option value="0">Rigid motion only</option></select></label>
+          <label class="field">Deformation belt width <span class="unit">km</span><input id="deformation_width_km" name="deformation_width_km" type="number" min="100" max="1500" step="10" value="400"></label>
+          <label class="field">Material triangle limit<input id="material_face_budget" name="material_face_budget" type="number" min="0" max="2000000" step="1" value="0"></label>
+          <p class="hint">Zero sets an automatic limit. Reaching the limit postpones extra detail while the world continues evolving.</p>
+          <label class="field">Rift mechanics detail<select id="mechanics_nodes" name="mechanics_nodes"><option value="512">512 · Fast</option><option value="1024" selected>1,024 · Balanced</option><option value="2048">2,048 · Detailed</option><option value="4096">4,096 · High</option><option value="8192">8,192 · Advanced</option></select></label>
+          <p class="hint">Approximate number of mechanical nodes across the globe. More nodes resolve local stretching in greater detail and take longer; this setting is independent of map and terrain resolution.</p>
+          <label class="range-field" id="slab-pull-field">Slab pull <output for="slab_pull">1.00×</output><input id="slab_pull" name="slab_pull" type="range" min="0" max="3" step="0.05" value="1"></label>
+          <label class="range-field" id="ridge-push-field">Ridge push <output for="ridge_push">0.25×</output><input id="ridge_push" name="ridge_push" type="range" min="0" max="2" step="0.05" value="0.25"></label>
+          <p class="hint" id="force-coefficient-note" hidden>Slab pull and ridge push are legacy coefficients. The force balance derives both from the world itself: slab weight from the retained slab inventory, ridge push from the gradient of the cooling ocean's potential energy. They are disabled here so a setting cannot look effective when it is not.</p>
+          <label class="range-field">Erosion <output for="erosion">1.00×</output><input id="erosion" name="erosion" type="range" min="0" max="3" step="0.05" value="1"></label>
+          <label class="range-field">Rift strength <output for="rift_strength">1.00×</output><input id="rift_strength" name="rift_strength" type="range" min="0" max="3" step="0.05" value="1"></label>
+        </details>
+        <details class="advanced-controls lip-controls">
+          <summary>Large igneous provinces <span aria-hidden="true">+</span></summary>
+          <label class="design-toggle"><input id="lip-enabled" type="checkbox"> Include LIPs in the next experiment</label>
+          <p class="hint">Finite continental magma pulses leave moving provinces and temporary thermal uplift. Locations and timing are scenario choices.</p>
+          <div class="field-row"><label>Generated events<input id="lip-generated" type="number" min="0" max="16" step="1" value="2"></label><label>Event seed<input id="lip-seed" type="number" min="0" max="4294967295" step="1" value="37001"></label></div>
+          <label class="field">Province name<input id="lip-name" type="text" maxlength="64" value="province-1" pattern="[A-Za-z0-9_-]+"></label>
+          <div class="field-row"><label>Longitude °<input id="lip-lon" type="number" min="-180" max="180" step="any" value="0"></label><label>Latitude °<input id="lip-lat" type="number" min="-90" max="90" step="any" value="0"></label></div>
+          <div class="field-row"><label>Radius km<input id="lip-radius" type="number" min="100" max="2000" step="any" value="600"></label><label>Magma km³<input id="lip-volume" type="number" min="1" max="100000000" step="any" value="2000000"></label></div>
+          <div class="field-row"><label>Onset Myr<input id="lip-start" type="number" min="0" max="1000" step="any" value="20"></label><label>Duration Myr<input id="lip-duration" type="number" min="0.05" max="30" step="any" value="2"></label></div>
+          <div class="field-row"><label>Intrusive fraction<input id="lip-intrusive" type="number" min="0" max="1" step="0.05" value="0.7"></label><label>Thermal support m<input id="lip-heat" type="number" min="0" max="2000" step="any" value="450"></label></div>
+          <label class="field">Cooling time Myr<input id="lip-cooling" type="number" min="1" max="200" step="any" value="35"></label>
+          <button type="button" id="lip-add" class="secondary-button wide">Add authored province</button>
+          <label class="field">Authored provinces<select id="lip-authored"><option value="">None</option></select></label>
+          <button type="button" id="lip-remove" class="text-button" disabled>Remove selected province</button>
+          <p id="lip-draft-note" class="hint" role="status">Changes apply to a new experiment.</p>
+        </details>
+        <button type="submit" class="primary-button" id="run-button"><span aria-hidden="true">▶</span> Run simulation</button>
+      </form>
+      <div class="run-progress" id="run-progress" hidden><div><span id="progress-label">Preparing world…</span><button class="secondary-button" id="pause-button">Pause</button></div><progress id="progress-bar" max="1" value="0"></progress><p id="progress-detail">The simulation runs locally on your laptop.</p><p id="simulation-timing" class="job-timing" role="status" hidden></p><p id="resume-note" class="hint" hidden></p></div>
+
+      <section class="initial-tools" aria-labelledby="initial-heading">
+        <div class="section-heading"><span class="eyebrow" id="initial-heading">02 / STARTING WORLD</span><button class="text-button" id="edit-world">Edit</button></div>
+        <p class="hint" id="editor-hint">Paint the map to shape continental crust and stable cratons.</p>
+        <div class="brush-options" role="group" aria-label="Paint material">
+          <button class="brush-button" data-brush="0" title="Paint ocean" aria-pressed="false"><span class="material-dot ocean"></span>Ocean</button>
+          <button class="brush-button selected" data-brush="1" title="Paint continental crust" aria-pressed="true"><span class="material-dot continent"></span>Crust</button>
+          <button class="brush-button" data-brush="2" title="Paint stable craton" aria-pressed="false"><span class="material-dot craton"></span>Craton</button>
+        </div>
+        <div class="editor-tool-row" role="group" aria-label="Editing tool"><button class="secondary-button selected" id="paint-tool" aria-pressed="true">Brush</button><button class="secondary-button" id="fill-tool" aria-pressed="false" title="Replace the connected region of the material you click">Fill region</button></div>
+        <label class="range-field brush-size">Brush radius <output for="brush-size">8° · 890 km</output><input id="brush-size" type="range" min="0.25" max="45" step="0.25" value="8"></label>
+        <p class="hint editor-brush-note" id="brush-note">Spherical radius stays the same at every resolution, including across the poles.</p>
+        <div class="button-row editor-history"><button class="secondary-button" id="undo-edit" disabled title="Undo the last brush stroke, fill, preset or grid change (Ctrl+Z)">↶ Undo</button><button class="secondary-button" id="redo-edit" disabled title="Redo the last edit (Ctrl+Shift+Z)">Redo ↷</button></div>
+        <p id="editor-coverage" class="hint editor-coverage" role="status"></p>
+        <label class="field">Starting preset<select id="initial-preset"><option value="pangaea" selected>Classic Pangaea</option><option value="highland65">Highland 65 · six continents, 65% crust</option><option value="land65">Stress test · 65% supercontinent</option></select></label>
+        <div class="button-row"><button class="secondary-button" id="regenerate">Apply preset</button><button class="secondary-button" id="clear-world">Clear to ocean</button></div>
+        <div class="button-row import-row"><button class="text-button" id="import-initial">↑ Import world</button><button class="text-button" id="export-initial">↓ Save world</button></div>
+        <input id="initial-file" type="file" accept="application/json,.json" hidden>
+        <details class="world-design-controls">
+          <summary>Regional design controls <span aria-hidden="true">+</span></summary>
+          <label class="design-toggle"><input id="world-design-enabled" type="checkbox"> Apply authored regions to the next experiment</label>
+          <p class="hint">Fixed geographic regions adjust how crust responds to boundary motion. Full protection keeps affected material vertices rigid; a weak region increases its deformation response by up to 50%. Existing cratons remain rigid. These controls do not prescribe plate breakup.</p>
+          <label class="field">Region effect<select id="design-kind"><option value="protected">Protect an interior</option><option value="weak">Prefer a weak region</option></select></label>
+          <div class="field-row"><label>Longitude <span class="unit">°</span><input id="design-lon" type="number" min="-180" max="180" step="any" value="0"></label><label>Latitude <span class="unit">°</span><input id="design-lat" type="number" min="-90" max="90" step="any" value="0"></label></div>
+          <div class="field-row"><label>Radius <span class="unit">°</span><input id="design-radius" type="number" min="0.25" max="45" step="0.25" value="8"></label><label>Strength <span class="unit">0–1</span><input id="design-strength" type="number" min="0" max="1" step="0.05" value="1"></label></div>
+          <div class="field-row"><label>Starts <span class="unit">Myr</span><input id="design-start" type="number" min="0" max="1000" step="any" value="0"></label><label>Ends <span class="unit">Myr</span><input id="design-end" type="number" min="0" max="1000" step="any" value="350"></label></div>
+          <label class="field">Reason for this intervention<input id="design-reason" type="text" maxlength="500" placeholder="What should this region encourage?"></label>
+          <div class="button-row"><button id="design-pick" class="secondary-button" aria-pressed="false">Pick on map</button><button id="design-preview" class="secondary-button">Preview region</button></div>
+          <button id="design-add" class="secondary-button wide">Add region</button>
+          <label class="field">Saved regions<select id="design-regions" aria-label="Authored regions in the starting world"><option value="">No authored regions</option></select></label>
+          <div class="button-row"><label class="design-toggle"><input id="design-show" type="checkbox" checked> Show regions</label><button id="design-remove" class="text-button" disabled>Remove selected</button></div>
+          <p id="design-status" class="hint" role="status">No authored regions. Save world includes these controls; Undo restores edits.</p>
+          <button id="design-branch" class="secondary-button wide" disabled>Branch paused experiment</button>
+          <p id="design-branch-note" class="hint">A compatible paused checkpoint can begin a separate experiment with this regional design.</p>
+        </details>
+      </section>
+      <section class="saved-section"><div class="section-heading"><span class="eyebrow">SAVED EXPERIMENTS</span><button id="refresh-runs" class="text-button" aria-label="Refresh saved experiments">↻</button></div><select id="saved-runs" aria-label="Choose a saved experiment"><option value="">No saved experiments yet</option></select><button class="secondary-button wide" id="load-run" disabled>Open experiment</button></section>
+      <p class="model-disclaimer">A process-based, approximate model. Explore plausible tectonic histories, not predictions of Earth's future.</p>
+    </aside>
+
+    <section class="main-panel">
+      <div class="map-topline"><div><span class="eyebrow">PLANETARY OBSERVATORY</span><h2 id="map-title">The world before motion</h2></div><span class="mode-badge" id="mode-badge">INITIAL CONDITION</span></div>
+      <div class="map-toolbar">
+        <div class="layer-tabs" role="group" aria-label="Map layer"><button data-layer="elevation" class="active" aria-pressed="true">Elevation</button><button data-layer="plate" aria-pressed="false">Plates</button><button data-layer="crust" aria-pressed="false">Crust</button><button data-layer="age" aria-pressed="false">Ocean age</button><button data-layer="loading" aria-pressed="false" title="Relative accumulated boundary loading toward internal breakup; not physical stress">Rift loading</button><button id="layer-thickness" data-layer="thickness" aria-pressed="false" title="Current compensated crustal column thickness" hidden disabled>Crust thickness</button><button id="layer-basins" data-layer="basins" aria-pressed="false" title="Current downward flexure of the foreland beside mountain belts; not total basin depth" hidden disabled>Foreland basins</button><button id="layer-damage" data-layer="damage" aria-pressed="false" title="Accumulated local mechanical damage, from zero to one" hidden disabled>Rift damage</button><button id="layer-weakness" data-layer="weakness" aria-pressed="false" title="Relative lithospheric strength; lower values mean weaker material" hidden disabled>Lithosphere strength</button></div>
+        <div class="layer-tabs" role="group" aria-label="Material deformation layers"><button id="layer-deformation" data-layer="deformation" aria-pressed="false" hidden disabled>Deforming regions</button><button id="layer-strain" data-layer="strain" aria-pressed="false" hidden disabled>Area strain</button><button id="layer-refinement" data-layer="refinement" aria-pressed="false" hidden disabled>Mesh detail</button></div>
+        <div class="overlay-options"><label><input type="checkbox" id="show-boundaries" checked title="Approximate boundary types sampled on the simulation grid"> Boundaries</label><label><input type="checkbox" id="show-slab-windows" checked title="Recorded active ridge-subduction episodes; dotted circles mark approximate thermal footprints, not plate boundaries"> Slab windows</label><label><input type="checkbox" id="show-motion" title="Plate motion direction and relative speed from spherical plate rotations"> Motion</label><label><input type="checkbox" id="show-grid"> Grid</label></div>
+      </div>
+      <div class="projection-toolbar">
+        <div class="projection-switch" role="group" aria-label="View projection"><button id="view-flat" type="button" aria-pressed="true">Map</button><button id="view-globe" type="button" aria-pressed="false" disabled>Globe</button></div>
+        <div id="globe-camera-controls" class="globe-camera-controls" hidden><span id="globe-center"></span><button class="text-button" id="globe-north" type="button">North pole</button><button class="text-button" id="globe-south" type="button">South pole</button><button class="text-button" id="globe-home" type="button">Reset view</button></div>
+        <div class="measure-controls"><button class="text-button" id="measure-toggle" type="button" aria-pressed="false" title="Measure great-circle distance between two points">Measure distance</button><button class="text-button" id="measure-clear" type="button" hidden>Clear</button></div>
+      </div>
+      <div class="map-shell" id="map-shell">
+        <button id="exit-map-fullscreen" class="secondary-button exit-map-fullscreen" type="button">↙ Exit full screen</button>
+        <div class="map-coordinate top-left">90° N</div><div class="map-coordinate bottom-left">90° S</div>
+        <canvas id="world-map" width="1152" height="576" aria-label="World map. Drag to paint the starting world; click recorded terrain to inspect its history." role="img"></canvas>
+        <canvas id="world-globe" width="960" height="600" tabindex="0" aria-label="Historical globe. Drag or use arrow keys to rotate. Scroll to zoom. Click to inspect history." role="img" hidden></canvas>
+        <div id="globe-hud" class="globe-hud" hidden><span id="globe-epoch">Loading history…</span><div><button id="globe-previous" type="button" aria-label="Previous globe snapshot">‹</button><button id="globe-play" type="button">▶ Play history</button><button id="globe-next" type="button" aria-label="Next globe snapshot">›</button></div></div>
+        <div class="map-empty" id="map-empty"><span class="loading-ring"></span>Creating the starting world</div>
+        <div class="map-hover" id="map-hover" hidden></div>
+        <div class="measure-readout" id="measure-readout" hidden role="status"></div>
+        <div class="map-scale"><span>180° W</span><span>0°</span><span>180° E</span></div>
+      </div>
+      <div class="map-caption"><span id="map-caption">Equirectangular projection · drag to paint your initial condition</span><div class="map-view-controls"><button class="text-button" id="map-zoom-out" title="Zoom out of the recorded map" aria-label="Zoom out of tectonic history" disabled>−</button><output id="map-zoom-label">1×</output><button class="text-button" id="map-zoom-in" title="Zoom into the recorded map" aria-label="Zoom into tectonic history" disabled>+</button><button class="text-button" id="map-zoom-fit" disabled>Fit</button><button class="text-button" id="fit-map" title="Expand map">⛶ <span>Expand</span></button></div></div>
+      <p id="globe-note" class="hint globe-note" hidden>Use the timeline below to play or scrub the recorded history. The globe shows the same saved map layers and boundary markers; rotating the view keeps your selected time.</p>
+      <details class="orientation-panel"><summary>Orient the globe <span id="orientation-current">Original globe orientation</span></summary><p id="orientation-description" class="hint"></p><div class="orientation-axes">
+        <label>Longitude / yaw<div><input id="orientation-yaw" type="number" min="-180" max="180" step="1" value="0" aria-label="Globe longitude shift in degrees"><span>°</span></div><input id="orientation-yaw-slider" type="range" min="-180" max="180" step="1" value="0" aria-label="Globe longitude shift"></label>
+        <label>Tilt / pitch<div><input id="orientation-pitch" type="number" min="-180" max="180" step="1" value="0" aria-label="Globe tilt in degrees"><span>°</span></div><input id="orientation-pitch-slider" type="range" min="-180" max="180" step="1" value="0" aria-label="Globe tilt"></label>
+        <label>Roll<div><input id="orientation-roll" type="number" min="-180" max="180" step="1" value="0" aria-label="Globe roll in degrees"><span>°</span></div><input id="orientation-roll-slider" type="range" min="-180" max="180" step="1" value="0" aria-label="Globe roll"></label>
+      </div><div class="orientation-actions"><button id="orientation-apply" class="secondary-button" disabled>Rotate starting world</button><button id="orientation-reset" class="text-button" disabled>Reset angles</button></div></details>
+      <p id="loading-map-note" class="loading-map-note" hidden>Differing boundary motions can load a plate even when its net movement is small. Colors show accumulated loading as a relative breakup indicator, not physical stress. Hover for loading and cooldown details.</p>
+      <details class="arc-notes"><summary>How island arcs form</summary>
+        <p>Where an oceanic plate sinks beneath another plate, released water helps mantle rock melt. Magma rises through the overriding plate: oceanic crust can develop an island arc; continental crust can develop a continental volcanic arc. <a href="https://www.usgs.gov/media/images/subduction-zone-3" target="_blank" rel="noreferrer">USGS illustration ↗</a></p>
+        <p>Here, new arc material accumulates on oceanic crust of the overriding plate, roughly 180 km behind a convergent boundary. It can be tracked before enough material builds up to appear on the crust map.</p>
+        <p>Crust behind the volcanic arc can also stretch. If the arc pulls away from the plate's interior, this extension can develop into a back-arc basin and eventually new seafloor. It does not happen at every trench. <a href="https://www.usgs.gov/publications/did-aleutian-basin-form-plate-capture-or-backarc-basin-opening" target="_blank" rel="noreferrer">Evidence from the Aleutian Basin ↗</a> Recorded basin phases and opening histories appear below the regional inspector.</p>
+        <details><summary>What the model records</summary><p>The revised physics setup treats normal convergence independently of sideways sliding. Incoming ocean and recorded polarity determine whether subduction and arc growth occur. Lite treats declared starting trenches as established; detailed slab experiments build maturity with sustained convergence over at least 10 Myr and 100 km of shortening. Legacy experiments retain their saved selection rules. Added buoyant reference area is <code>(convergence + 8) × trench length × time step × 0.015 × trench maturity</code>, in km² with speed in km/Myr and time in Myr. Detailed fixed-trench experiments can include a bounded retreat contribution; Lite uses actual convergence without that transfer. Arc crust occupies its actual moving footprint, with connected volcanic cores, sloping flanks, and submerged aprons. An island emerges where that surface rises above sea level; small islands can be missed by a coarse review map. Overlapping arc surfaces expose the highest surface present. Existing arcs can grow, gain magma, and deform where mechanically connected or in collision.</p><p>An arc event records the first addition for that parent plate within each 100 Myr interval. Its area is the addition in that one integration step, not an interval total or a volcano count. Back-arc records distinguish loading, rifting, spreading, quiet intervals and closure. Loading alone is not measured opening; the saved extension and phase changes show what occurred. Lite loads a back-arc sector when the overriding plate's solved motion carries it away from an active declared trench during oceanic convergence, measured in the stationary mantle frame. This needs no slab depth or mass threshold and adds no independent rollback speed or driving force on the overriding plate. Existing arc, sector, rupture and basin geometry retain their detail. Detailed experiments retain their recorded retreat or anchored-slab loading laws. These rules do not explicitly solve water or temperature fields, magma plumbing, eruption timing, or hotspots.</p></details>
+      </details>
+      <p id="slab-window-note" class="hint slab-window-note" role="status" hidden></p>
+      <div class="layer-tabs" role="group" aria-label="Large igneous province layers"><button id="layer-lip" data-layer="lip" aria-pressed="false" hidden disabled>LIP provinces</button><button id="layer-lipheat" data-layer="lipheat" aria-pressed="false" hidden disabled>LIP thermal support</button><label><input id="show-lip" type="checkbox" checked> Active LIP sources</label></div>
+      <details id="lip-history" hidden><summary>Large igneous province history</summary><p class="hint">Province colours show cumulative intrusive and extrusive construction carried by the crust, not the amount of uneroded lava remaining. Thermal support fades separately. Source rings stay at their authored locations while the deposits move.</p><div id="lip-history-rows" class="hint"></div></details>
+      <div class="legend-row"><div id="layer-legend" class="layer-legend"></div><div class="boundary-legend" id="boundary-legend"><span><i class="ridge"></i>Ridge</span><span title="Teeth are on the overriding plate"><i class="subduction"></i>Subduction</span><span><i class="transform"></i>Transform</span><span><i class="collision"></i>Collision</span><span><i class="rift"></i>Rift</span></div></div>
+      <p id="subduction-note" class="hint" hidden></p>
+      <p id="recorded-physics-note" class="hint" role="status"></p>
+
+      <section class="timeline-panel" aria-labelledby="timeline-heading">
+        <div class="timeline-heading"><div><span class="eyebrow" id="timeline-heading">03 / REVIEW THE HISTORY</span><p><strong id="time-value">0</strong> <span>MILLION YEARS ELAPSED</span></p></div><div class="timeline-controls"><label class="sr-only" for="play-speed">Playback speed</label><select id="play-speed"><option value="750">Slow</option><option value="250" selected>1×</option><option value="90">Fast</option></select><button class="icon-button" id="previous-frame" title="Previous snapshot" disabled aria-label="Previous snapshot">‹</button><button class="play-button" id="play-button" disabled aria-label="Play history">▶</button><button class="icon-button" id="next-frame" title="Next snapshot" disabled aria-label="Next snapshot">›</button></div></div>
+        <input type="range" id="timeline" min="0" max="0" value="0" aria-label="History snapshot" disabled>
+        <div id="event-track" class="event-track" aria-label="Tectonic events along the timeline"></div>
+        <div class="timeline-labels"><span>BREAKUP / 0 Myr</span><span id="snapshot-label">Run an experiment to record its history</span><span id="timeline-end">1,000 Myr</span></div>
+        <div class="timeline-jump"><label for="jump-time">Go to elapsed time</label><input id="jump-time" type="number" min="0" step="any" value="0" aria-label="Elapsed time in million years"><span>Myr</span><button id="jump-button" class="secondary-button" disabled>Go</button><label id="follow-label" class="follow-label" hidden><input id="follow-live" type="checkbox" checked> Follow new frames</label><span id="motion-note" hidden>Arrows show motion direction and relative speed (length capped at 6 cm/year).</span></div>
+      </section>
+
+      <section id="spreading-history" class="history-inspector" aria-labelledby="spreading-heading" hidden>
+        <div class="section-heading"><div><span class="eyebrow">SPREADING HISTORY</span><h3 id="spreading-heading">Spreading at this time</h3></div><span id="spreading-epoch" class="subtle-badge"></span></div>
+        <p id="spreading-description" class="hint"></p>
+        <div id="spreading-figures" class="inspection-current"></div>
+        <p class="hint">Full opening measures separation across the ridge. Axis drift measures how far the ridge itself moves across the globe. A stationary axis can still spread as the two plates move away from it.</p>
+        <details class="inspection-details"><summary>New seafloor accounting</summary><p id="spreading-budget" class="hint"></p></details>
+      </section>
+
+      <section class="history-inspector" aria-labelledby="inspector-heading">
+        <div class="section-heading"><div><span class="eyebrow" id="inspector-heading">REGIONAL HISTORY</span><h3 id="inspector-title">How did this place form?</h3></div><div class="inspection-actions"><button id="refresh-inspection" class="text-button" hidden>Update trace ↻</button><button id="clear-inspection" class="text-button" hidden>Clear selection ×</button></div></div>
+        <p id="inspector-description" class="hint" role="status">Click a point on the recorded map to follow its terrain, plate membership and tectonic surroundings through time.</p>
+        <div id="inspection-content" hidden>
+          <div class="inspection-chart-heading"><span id="inspection-mode" class="subtle-badge"></span><span>Elevation above model sea level · click chart to travel in time</span></div>
+          <svg id="elevation-history" viewBox="0 0 640 174" role="button" tabindex="0" aria-label="Elevation history. Click to select a time; use left and right arrow keys to step through snapshots."></svg>
+          <div id="inspection-current" class="inspection-current"></div>
+          <div id="inspection-processes" class="inspection-processes"></div>
+          <p id="inspection-accounting" class="hint"></p>
+          <details id="inspection-structure" class="inspection-details" hidden><summary>Crustal structure and subsidence <span aria-hidden="true">+</span></summary><div id="inspection-structure-values" class="inspection-current"></div><p id="inspection-structure-note" class="hint"></p></details>
+          <details class="inspection-details"><summary>Plate and boundary history <span aria-hidden="true">+</span></summary><div id="inspection-changes" class="inspection-changes"></div></details>
+          <details class="inspection-details"><summary>Related tectonic events <span aria-hidden="true">+</span></summary><div id="inspection-events" class="event-list"></div></details>
+        </div>
+      </section>
+
+      <section id="backarc-history" class="history-inspector" aria-labelledby="backarc-heading" hidden>
+        <div class="section-heading"><div><span class="eyebrow">BACK-ARC HISTORY</span><h3 id="backarc-heading">Behind the volcanic arc</h3></div><span id="backarc-count" class="subtle-badge"></span></div>
+        <p id="backarc-description" class="hint"></p>
+        <div id="backarc-basins"></div>
+      </section>
+
+      <section id="trench-history" class="history-inspector" aria-labelledby="trench-heading" hidden>
+        <div class="section-heading"><div><span class="eyebrow">SUBDUCTION HISTORY</span><h3 id="trench-heading">The life of a trench</h3></div><span id="trench-count" class="subtle-badge"></span></div>
+        <p id="trench-description" class="hint"></p>
+        <label for="trench-select">Recorded trench system</label>
+        <select id="trench-select" aria-label="Choose a recorded trench system"></select>
+        <div id="trench-detail"></div>
+      </section>
+
+      <section id="rift-history" class="history-inspector" aria-labelledby="rift-heading" hidden>
+        <div class="section-heading"><div><span class="eyebrow">CONTINENTAL RIFT HISTORY</span><h3 id="rift-heading">Where the continent stretches</h3></div><span id="rift-count" class="subtle-badge"></span></div>
+        <p id="rift-description" class="hint"></p>
+        <label for="rift-select">Recorded rift system</label>
+        <select id="rift-select" aria-label="Choose a recorded continental rift system"></select>
+        <div id="rift-detail"></div>
+        <details id="rift-mechanics-detail" class="inspection-details" hidden><summary>Mechanical calculation at this time</summary><p id="rift-mechanics-status" class="hint"></p></details>
+        <details id="deformation-detail" class="inspection-details" hidden><summary>Deformation and adaptive detail</summary><p id="deformation-status" class="hint"></p></details>
+      </section>
+
+      <section id="collision-history" class="history-inspector" aria-labelledby="collision-heading" hidden>
+        <div class="section-heading"><div><span class="eyebrow">COLLISION HISTORY</span><h3 id="collision-heading">Where crust meets crust</h3></div><span id="collision-count" class="subtle-badge"></span></div>
+        <p id="collision-description" class="hint"></p>
+        <details class="inspection-details"><summary>Retained contacts and sutures</summary><div id="collision-contacts" class="inspection-changes"></div></details>
+        <p class="hint">Contact records keep upper and underthrust sheets distinct. Drawn elevation follows their outer surface envelope while ownership follows the established upper sheet. Stack flexure and lower-crust flow are still unresolved.</p>
+      </section>
+      <section id="authored-history" class="history-inspector" aria-labelledby="authored-heading" hidden>
+        <div class="section-heading"><div><span class="eyebrow">AUTHOR'S INTERVENTIONS</span><h3 id="authored-heading">The recorded world design</h3></div><span id="authored-count" class="subtle-badge"></span></div>
+        <p id="authored-description" class="hint"></p>
+        <div id="authored-regions" class="inspection-changes"></div>
+      </section>
+
+      <section class="terrain-panel" aria-labelledby="terrain-heading">
+        <div class="section-heading"><div><span class="eyebrow">04 / DEVELOP THE TERRAIN</span><h3 id="terrain-heading">A closer look at your world.</h3></div><span class="subtle-badge">8K WORLD OUTPUT</span></div>
+        <p class="hint">Build a final heightmap directly from the saved spherical mesh, or bring back an eroded landscape from goSPL. Output pixels sample the original surface independently of the review map. Optional terrain detail adds visual texture; it does not add simulated geology.</p>
+        <div class="terrain-source-controls"><label>Surface source<select id="terrain-source-mode"><option value="history">Saved tectonic epoch</option><option value="gospl">goSPL landscape</option></select></label></div>
+        <div id="terrain-native-options" class="terrain-native-options"><label><input id="terrain-reconstruct-margins" type="checkbox"> Reconstruct continental margins for an older history</label><p class="hint">Adds an inward shelf and slope for this render. The saved experiment is preserved. New experiments already include this profile; old coast outlines cannot regain detail lost when they were created.</p></div>
+        <div id="terrain-import" class="terrain-import" hidden><label for="terrain-import-path">Local goSPL output folder or gospl.xdmf file</label><div class="terrain-import-path"><input id="terrain-import-path" type="text" spellcheck="false" placeholder="Paste the output path on this computer"><button id="browse-gospl-result" class="secondary-button">Browse…</button><button id="inspect-gospl-result" class="secondary-button">Load results</button></div><label>Solver epoch<select id="terrain-import-epoch" disabled><option value="">Load results first</option></select></label><p id="terrain-import-status" class="hint" role="status">Choose the output folder containing the XDMF, XMF and HDF5 files. Imported results keep their own globe orientation.</p></div>
+        <div class="terrain-controls"><label>Heightmap size<select id="terrain-width"><option value="2048">2,048 × 1,024</option><option value="4096">4,096 × 2,048</option><option value="8192" selected>8,192 × 4,096</option><option value="16384">16,384 × 8,192</option></select></label><label class="range-field">Terrain detail <output for="terrain-detail">1.00×</output><input id="terrain-detail" type="range" min="0" max="2" step="0.05" value="1"></label><button class="primary-button" id="generate-terrain" disabled>Generate selected time</button></div>
+        <p class="hint" id="terrain-resolution-note">8,192 × 4,096 · 4.9 km per pixel at the equator · 128 MiB of floating-point elevations.</p>
+        <p class="terrain-source" id="terrain-selected-source">Select a saved tectonic time to generate terrain.</p>
+        <div class="terrain-progress" id="terrain-progress" hidden><div><span id="terrain-progress-label" role="status">Preparing terrain…</span><button class="text-button danger" id="cancel-terrain">Stop</button></div><progress id="terrain-progress-bar" max="1" value="0"></progress><p id="terrain-timing" class="job-timing" role="status" hidden></p></div>
+        <div class="saved-terrain-controls"><label for="saved-terrain">Saved terrain epochs <span id="saved-terrain-count"></span></label><div><select id="saved-terrain" aria-label="Choose previously generated terrain" disabled><option value="">No generated terrain yet</option></select><button class="text-button" id="refresh-terrain" aria-label="Refresh saved terrain">↻</button></div><p id="saved-terrain-status" class="hint" role="status" hidden></p></div>
+        <div class="terrain-result" id="terrain-result" hidden><button class="terrain-thumbnail-button" id="review-terrain-thumbnail" aria-label="Open detailed terrain viewer"><img id="terrain-thumbnail" alt="Detailed terrain preview" loading="lazy"></button><div><span class="eyebrow">GENERATED TERRAIN</span><h4 id="terrain-result-title"></h4><p class="hint" id="terrain-result-source"></p><div class="terrain-result-actions"><button id="review-terrain" class="secondary-button">Explore terrain ↗</button><button id="terrain-download-png" class="text-button">↓ 16-bit PNG</button><button id="terrain-download-npy" class="text-button">↓ Elevation NPY</button><button id="terrain-download-zip" class="text-button">↓ Terrain package</button></div></div></div>
+      </section>
+
+      <section class="metrics" aria-label="World statistics"><article><span class="eyebrow">LAND ABOVE SEA</span><p id="stat-land">—</p><span class="metric-note">of planetary surface</span></article><article><span class="eyebrow">HIGHEST MAP SAMPLE</span><p id="stat-peak">—</p><span class="metric-note">metres above sea level</span></article><article><span class="eyebrow" id="stat-plates-label">ACTIVE PLATES</span><p id="stat-plates">—</p><span class="metric-note" id="stat-plates-note">moving plates</span></article><article><span class="eyebrow">MEAN OCEAN AGE</span><p id="stat-age">—</p><span class="metric-note">million years</span></article></section>
+
+      <div class="bottom-panels"><section class="events-panel"><div class="section-heading"><span class="eyebrow">WHOLE EXPERIMENT RECORD</span><span id="event-count" class="subtle-badge">AWAITING SIMULATION</span></div><div class="event-filters"><label class="sr-only" for="event-type">Filter event type</label><select id="event-type"><option value="">All event types</option></select><label class="sr-only" for="event-search">Search tectonic events</label><input id="event-search" type="search" placeholder="Search plates or events…"></div><p id="record-note" class="hint">The full recorded history stays visible as you scrub. Click an event to visit its time.</p><div id="event-list" class="event-list"><p class="empty-events">Run an experiment to record its tectonic history.</p></div></section><section class="export-panel"><span class="eyebrow">TAKE YOUR WORLD WITH YOU</span><h3>From deep time to terrain.</h3><p>Export the selected snapshot as a 16-bit height map, or keep the complete experiment and its history.</p><button class="secondary-button wide" id="download-heightmap" title="Selected snapshot. Decode elevation in metres = 16-bit pixel value minus 12,000." disabled>↓ 16-bit height map <span>PNG</span></button><button class="secondary-button wide" id="download-export" disabled>↓ Experiment & history <span>ZIP</span></button><button class="text-button" id="download-preview" disabled>Download color relief preview ↗</button></section></div>
+      <section class="gospl-panel" aria-labelledby="gospl-heading">
+        <div class="section-heading"><div><span class="eyebrow">05 / EXPORT TO goSPL</span><h3 id="gospl-heading">Evolving tectonic history.</h3></div><span class="subtle-badge">LANDSCAPE EVOLUTION</span></div>
+        <p class="hint">Give goSPL a starting surface and changing tectonic forcing through a saved time range. Motion and geometric vertical forcing come from recorded history; goSPL computes subsequent erosion. The package README documents the erosion correction and approximation.</p>
+        <div class="gospl-controls">
+          <label>Starting epoch<select id="gospl-start" disabled><option value="">No saved history</option></select></label>
+          <label>Ending epoch<select id="gospl-end" disabled><option value="">No saved history</option></select></label>
+          <label class="gospl-mesh-field">Spherical mesh<select id="gospl-subdivisions"><option value="6">Level 6 · 40,962 nodes · ~120 km</option><option value="7" selected>Level 7 · 163,842 nodes · ~60 km</option><option value="8">Level 8 · 655,362 nodes · ~30 km</option><option value="9">Level 9 · 2,621,442 nodes · ~15 km · very large</option></select></label>
+          <label>goSPL time step (years)<input id="gospl-dt" type="number" min="1" step="1" value="100000" aria-describedby="gospl-step-note"></label>
+          <label>Rainfall (m/year)<input id="gospl-rainfall" type="number" min="0" max="20" step="any" value="1"></label>
+          <button class="primary-button" id="generate-gospl" disabled>Build history ZIP</button>
+        </div>
+        <p class="hint" id="gospl-step-note">Use a whole-year step that divides every saved interval exactly; 100,000 years fits a 2 Myr interval.</p>
+        <p class="hint gospl-mesh-note">Epochs are million years elapsed since the starting world. Mesh spacing differs from heightmap pixels; finer goSPL meshes cost more memory and runtime.</p>
+        <p class="gospl-source" id="gospl-selected-source">Save at least two epochs to export evolving history.</p>
+        <p id="gospl-form-note" class="hint" role="status" hidden></p>
+        <div class="gospl-progress" id="gospl-progress" hidden><div><span id="gospl-progress-label" role="status"></span><button class="text-button danger" id="cancel-gospl">Cancel export</button></div><progress id="gospl-progress-bar" max="1" value="0"></progress><p id="gospl-timing" class="job-timing" role="status" hidden></p><p class="gospl-source" id="gospl-progress-source"></p></div>
+        <div class="saved-gospl-controls"><label for="saved-gospl">Saved goSPL exports <span id="saved-gospl-count"></span></label><div><select id="saved-gospl" disabled><option value="">No completed exports yet</option></select><button class="text-button" id="refresh-gospl" aria-label="Refresh saved goSPL exports">↻</button></div><p id="saved-gospl-status" class="hint" role="status" hidden></p></div>
+        <div class="gospl-result" id="gospl-result" hidden><div><h4 id="gospl-result-title"></h4><p class="gospl-source" id="gospl-result-source"></p></div><button class="secondary-button" id="download-gospl" disabled>↓ goSPL history ZIP</button></div>
+      </section>
+      <footer>DEEP TIME <span>RIFT · DRIFT · COLLIDE · REPEAT</span><span id="connection-status">Connecting to local engine</span></footer>
+    </section>
+  </main>
+
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+  <dialog id="about-dialog"><button class="dialog-close icon-button" id="close-about" aria-label="Close model notes">×</button><span class="eyebrow">ABOUT THE EXPERIMENT</span><h2>A useful approximation<br>of a restless planet.</h2><p>Deep Time evolves an Earth-scale world using simplified rules for plate motion, rifting, oceanic crust creation and aging, subduction, island arcs, terrane accretion, continental collision, uplift, and erosion.</p><p>The input map marks oceanic crust, continental crust, and stronger cratonic cores. A random seed makes an experiment repeatable. One Myr is one million years.</p><p>This is a procedural, process-based tectonic model, not a solution of mantle convection or a reconstruction of real Earth. Its spherical mesh and rule choices set the detail and plausibility of the result. Review-map resolution changes the projection; tectonic mesh detail controls the simulation. A billion years is a scenario to explore.</p><p>Height maps use metres relative to the model's sea level. For 16-bit PNGs, elevation in metres equals the pixel value minus 12,000. The full experiment export includes the scientific grids, configuration, event history, and elevation encoding information.</p><div class="note-callout">Start with the Pangaea-like world, or paint an arbitrary distribution of continents and cratons. Run, scrub through time, and compare how each process leaves its mark.</div></dialog>
+  <dialog id="terrain-dialog" class="terrain-dialog" aria-labelledby="terrain-view-title"><button class="dialog-close icon-button" id="close-terrain" aria-label="Close terrain viewer">×</button><div class="terrain-view-heading"><span class="eyebrow">DETAILED TERRAIN / SAVED EPOCH</span><h2 id="terrain-view-title">Your world in detail</h2><p id="terrain-view-source"></p></div><div class="terrain-view-toolbar"><div><button class="secondary-button" id="terrain-zoom-out" aria-label="Zoom out of terrain">−</button><output id="terrain-zoom-label">Fit</output><button class="secondary-button" id="terrain-zoom-in" aria-label="Zoom into terrain">+</button><button class="secondary-button" id="terrain-fit">Fit world</button><button class="secondary-button" id="terrain-native">1:1 pixels</button></div><span>Scroll to zoom · drag to pan · click to sample elevation</span></div><div class="terrain-viewport"><canvas id="terrain-map" role="img" tabindex="0" aria-label="Detailed terrain. Scroll or use plus and minus to zoom, drag or use arrow keys to pan, click to sample elevation."></canvas><div id="terrain-view-loading" class="terrain-view-loading" role="status">Loading terrain preview…</div></div><div class="terrain-view-footer"><span id="terrain-sample">Coordinates and elevation appear here when you click the map.</span><span id="terrain-tile-status"></span></div><p class="terrain-view-note">This surface belongs to its saved tectonic or solver epoch. Review the tectonic timeline separately for plate boundaries and material history.</p></dialog>
+  <script src="/subduction.js?v=2" defer></script>
+  <script src="/native_boundaries.js?v=2" defer></script>
+  <script src="/globe.js?v=1" defer></script>
+  <script src="/app.js?v=effective-subduction-20261002" defer></script>
+</body>
+</html>

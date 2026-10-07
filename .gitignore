@@ -1,0 +1,36 @@
+# Generated simulation data and local environments
+output/
+validation/
+tmp/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage*
+htmlcov/
+node_modules/
+*.log
+*.zip
+*.npz
+*.npy
+*.h5
+*.hdf5
+!tests/fixtures/*.npz
+!tests/fixtures/contact204/*.npz
+# Private settings and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+token*.json
+binding.json
+watch-state.json
+.codex/
+.codex-remote-attachments/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
