@@ -123,9 +123,10 @@ class _ExactGeometryReuse:
     def _generation(self, role, kernel):
         g = kernel.__globals__
         names = ('_split', '_precise_partition', '_positive_binary64_winding', '_uncertain_winding',
+                 '_sensitive_region_area',
                  'edge_distances', 'plane_distances', '_precise_rotation_integral')
         signature = (kernel,)+tuple(g.get(name) for name in names)+(geometry._unit,
-                     geometry._triangle_planes, geometry._polygon_area, ExactPolygon,
+                     geometry._triangle_planes, geometry._polygon_area, geometry._triangle_area_condition, ExactPolygon,
                      ExactPolygon.solid_angle, np.__version__)
         with self.lock:
             old = self.generations.get(role)
@@ -430,6 +431,18 @@ def _uncertain_winding(polygon):
     return bool(np.any(determinant<=roundoff))
 
 
+def _sensitive_region_area(polygon, area, radius):
+    """Filter coordinate-return roundoff before regional errors can cancel.
+
+    A rounded cut sweeps area in proportion to its perimeter. Whole-footprint
+    closure cannot detect opposite errors in covered and uncovered pieces.
+    Use the same conservative solid-angle filter as the overlap-area kernel;
+    this only selects exact clipping, never changes an acceptance tolerance.
+    """
+    perimeter=np.linalg.norm(polygon-np.roll(polygon,1,axis=0),axis=1).sum()
+    return bool(area>0. and 32*np.finfo(float).eps*perimeter > 2e-10*area/radius**2)
+
+
 def _homogeneous(point):
     """Binary64 point as exact integers [X, Y, Z, W], W > 0, value (X/W, Y/W, Z/W)."""
     ratios = [float(value).as_integer_ratio() for value in point]
@@ -651,7 +664,13 @@ def _partition_face_uncached(triangles, face, selected, upper, reference_area, r
         regions = next_regions
     areas = np.array([geometry._polygon_area(polygon, radius) for polygon, _ in regions])
     error = abs(float(areas.sum())-reference_area)/reference_area
-    if error > 2e-10 or any(_uncertain_winding(polygon) for polygon,_ in regions):
+    # Thin original triangles may lose a region before it reaches this list.
+    # Inspect their conditioning as well as every surviving regional area.
+    sensitive_source=bool(len(selected) and np.any(geometry._triangle_area_condition(
+        triangles[np.r_[face,upper[selected]]])))
+    if (error > 2e-10 or sensitive_source
+            or any(_uncertain_winding(polygon) or _sensitive_region_area(polygon,area,radius)
+                   for (polygon,_),area in zip(regions,areas))):
         regions,areas=_precise_partition(triangles,face,selected,upper,radius=radius,reference_area=reference_area)
         # Unrepresentable regions carry exact rays shared by area and moments.
         # Safe binary64 projections still pass the unchanged regional contract;
