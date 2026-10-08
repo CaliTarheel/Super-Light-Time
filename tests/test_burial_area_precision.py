@@ -1,4 +1,4 @@
-"""Source-ray areas survive binary64 return of long, narrow stack regions."""
+"""Source-ray geometry survives partitions of long, narrow stack regions."""
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -53,9 +53,8 @@ class BurialAreaPrecisionTests(unittest.TestCase):
         self.assertGreater(error,0.)  # no rescaling to force exact source closure
         np.testing.assert_array_equal(TRIANGLES,source)
 
-        # Moments retain the returned binary64 geometry. Its independently
-        # integrated area must agree within the existing regional contract;
-        # the whole-footprint area integral above has the tighter gate.
+        # Safe binary64 projections retain the established regional contract.
+        # Regions which cannot meet it must retain exact rays for their metric.
         for (polygon,_),area in zip(regions,areas):
             self.assertTrue(burial_depth._positive_binary64_winding(polygon))
             metric=collision_interface.rotation_metric(polygon,RADIUS)
@@ -75,6 +74,7 @@ class BurialAreaPrecisionTests(unittest.TestCase):
         for polygon,cover in regions:
             # A positive but shrunken return polygon no longer represents the
             # exact source region; an exact area sidecar cannot legitimize it.
+            if isinstance(polygon,burial_depth.ExactPolygon):polygon=polygon.represented()
             center=polygon.mean(axis=0)
             moved=mesh_coverage._unit(.99*polygon+.01*center)
             self.assertTrue(burial_depth._positive_binary64_winding(moved))

@@ -7,7 +7,7 @@ within a region form a stack. Neither pair-area summation nor mean depth can
 represent both of these operations.
 """
 from fractions import Fraction
-from math import atan2, fsum, gcd
+from math import gcd
 from collections import OrderedDict
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -22,6 +22,7 @@ import mesh_coverage as geometry
 from parallel_runtime import active_runtime, share_inputs, read_inputs
 from spherical_predicates import edge_distances, plane_distances
 from deforming_regions import IncompleteContactStepError
+from exact_polygon import ExactPolygon
 
 VERSION = 1
 # Below this many uncached faces the process dispatch costs more than it saves.
@@ -57,6 +58,7 @@ def _geometry_arithmetic_key():
 
 
 def _geometry_clone(value):
+    if isinstance(value, ExactPolygon): return value  # All retained coordinates are immutable integers.
     if isinstance(value, np.ndarray): return value.copy()
     if isinstance(value, list): return [_geometry_clone(item) for item in value]
     if isinstance(value, tuple): return tuple(_geometry_clone(item) for item in value)
@@ -64,7 +66,9 @@ def _geometry_clone(value):
 
 
 def _geometry_payload(value):
+    if isinstance(value, ExactPolygon): return _geometry_payload(value.homogeneous)
     if isinstance(value, np.ndarray): return value.nbytes
+    if isinstance(value, int): return max(16, (value.bit_length()+7)//8)
     if isinstance(value, (bytes, str)): return len(value)
     if isinstance(value, (tuple, list)): return sum(_geometry_payload(x) for x in value)
     return 16
@@ -121,7 +125,8 @@ class _ExactGeometryReuse:
         names = ('_split', '_precise_partition', '_positive_binary64_winding', '_uncertain_winding',
                  'edge_distances', 'plane_distances', '_precise_rotation_integral')
         signature = (kernel,)+tuple(g.get(name) for name in names)+(geometry._unit,
-                     geometry._triangle_planes, geometry._polygon_area, np.__version__)
+                     geometry._triangle_planes, geometry._polygon_area, ExactPolygon,
+                     ExactPolygon.solid_angle, np.__version__)
         with self.lock:
             old = self.generations.get(role)
             if old is not None and old != signature:
@@ -380,7 +385,9 @@ def reuse_rotation_metric(polygon, radius, kernel):
     if not _REUSE_ENABLED.get():
         _GEOMETRY_REUSE.bypass(); return _GEOMETRY_REUSE.run(lambda: kernel(polygon, radius))
     try:
-        arguments = (_array_geometry_key(polygon), _scalar_geometry_key(radius), _geometry_arithmetic_key())
+        shape_key = (('exact-ray-polygon', polygon.homogeneous) if isinstance(polygon, ExactPolygon)
+                     else _array_geometry_key(polygon))
+        arguments = (shape_key, _scalar_geometry_key(radius), _geometry_arithmetic_key())
     except TypeError:
         _GEOMETRY_REUSE.bypass(); return _GEOMETRY_REUSE.run(lambda: kernel(polygon, radius))
     return _GEOMETRY_REUSE.get('metric', ('metric', arguments), arguments, kernel,
@@ -440,7 +447,7 @@ def _homogeneous_equal(p, q):
     return p[0]*q[3] == q[0]*p[3] and p[1]*q[3] == q[1]*p[3] and p[2]*q[3] == q[2]*p[3]
 
 
-def _precise_partition(triangles,face,selected,upper,*,radius=None):
+def _precise_partition(triangles,face,selected,upper,*,radius=None,reference_area=None):
     """Reclip original represented triangles when binary64 cuts lose accuracy.
 
     This never reverses a polygon, changes material, or relaxes a conservation
@@ -457,11 +464,12 @@ def _precise_partition(triangles,face,selected,upper,*,radius=None):
     Decimal division is correctly rounded, so the returned 80-digit unit
     vectors depend only on those rational values.
 
-    When requested, integrate each retained region before rounding its
-    vertices to binary64. Long, thin source faces can lose relative area at
-    that final cast despite retaining valid winding. These are independent
-    solid-angle integrals of the exact clipping geometry, never a correction
-    or redistribution of the source area.
+    When a radius is requested, integrate the exact regions and retain exact
+    rays wherever the binary64 projection fails the existing area/winding
+    contract. Safe projections keep the established array representation.
+    Every exact-positive region survives; an unrepresentable region is never
+    discarded or assigned a corrected area. The legacy radius-free diagnostic
+    path still returns only representable binary64 regions.
     """
     from decimal import Decimal,localcontext
 
@@ -473,18 +481,6 @@ def _precise_partition(triangles,face,selected,upper,*,radius=None):
 
     def rational(point):
         return tuple(Fraction(value,point[3]) for value in point[:3])
-
-    def area(polygon):
-        points=[unit(point) for point in polygon]
-        a=points[0]
-        angles=[]
-        for b,c in zip(points[1:-1],points[2:]):
-            determinant=(a[0]*(b[1]*c[2]-b[2]*c[1])
-                         +a[1]*(b[2]*c[0]-b[0]*c[2])
-                         +a[2]*(b[0]*c[1]-b[1]*c[0]))
-            denominator=1+sum(a[i]*b[i]+b[i]*c[i]+c[i]*a[i] for i in range(3))
-            angles.append(2*atan2(float(determinant),float(denominator)))
-        return fsum(angles)*float(radius)**2
 
     with localcontext() as context:
         context.prec=80
@@ -500,6 +496,8 @@ def _precise_partition(triangles,face,selected,upper,*,radius=None):
             if (a[3]*b[3]*c[3]+(a[0]*b[0]+a[1]*b[1]+a[2]*b[2])*c[3]
                     +(b[0]*c[0]+b[1]*c[1]+b[2]*c[2])*a[3]+(c[0]*a[0]+c[1]*a[1]+c[2]*a[2])*b[3])<=0:
                 raise ValueError('Burial partition requires minor convex source triangles.')
+        if radius is not None and reference_area is None:
+            reference_area=ExactPolygon(tuple(tuple(point) for point in source[int(face)])).solid_angle()*float(radius)**2
 
         def positive(polygon):
             if len(polygon)<3:return False
@@ -562,9 +560,19 @@ def _precise_partition(triangles,face,selected,upper,*,radius=None):
             keys = [rational(point) for point in polygon]
             represented = np.asarray([original_points[key] if key in original_points else unit(point)
                                       for key, point in zip(keys, polygon)], float)
+            if radius is not None:
+                exact=ExactPolygon(tuple(tuple(point) for point in polygon))
+                area=exact.solid_angle()*float(radius)**2
+                if (_positive_binary64_winding(represented)
+                        and np.isclose(geometry._polygon_area(represented,radius),area,
+                                       rtol=2e-9,atol=reference_area*2e-11)):
+                    result.append((represented,cover))
+                else:
+                    result.append((exact,cover))
+                areas.append(area)
+                continue
             if _positive_binary64_winding(represented):
                 result.append((represented, cover))
-                if radius is not None:areas.append(area(polygon))
             else:
                 # A tiny positive fan can become inverted at binary64 return
                 # while the rest of this exact polygon represents a large
@@ -580,7 +588,6 @@ def _precise_partition(triangles,face,selected,upper,*,radius=None):
                     triangle=represented[[0,index,index+1]]
                     if _positive_binary64_winding(triangle):
                         result.append((triangle,cover))
-                        if radius is not None:areas.append(area([polygon[0],polygon[index],polygon[index+1]]))
         return result if radius is None else (result,np.asarray(areas))
 
 
@@ -645,12 +652,13 @@ def _partition_face_uncached(triangles, face, selected, upper, reference_area, r
     areas = np.array([geometry._polygon_area(polygon, radius) for polygon, _ in regions])
     error = abs(float(areas.sum())-reference_area)/reference_area
     if error > 2e-10 or any(_uncertain_winding(polygon) for polygon,_ in regions):
-        regions,areas=_precise_partition(triangles,face,selected,upper,radius=radius)
-        # Interface moments use these returned binary64 polygons. Keep their
-        # represented area within the existing regional overlap agreement,
-        # even though burial integrates the exact source-ray partition above.
-        # Positive winding alone does not bound a badly rounded thin region.
-        represented=np.array([geometry._polygon_area(polygon,radius) for polygon,_ in regions])
+        regions,areas=_precise_partition(triangles,face,selected,upper,radius=radius,reference_area=reference_area)
+        # Unrepresentable regions carry exact rays shared by area and moments.
+        # Safe binary64 projections still pass the unchanged regional contract;
+        # an unrelated exact-area sidecar cannot legitimize a changed polygon.
+        represented=np.array([(polygon.solid_angle()*float(radius)**2
+                               if isinstance(polygon,ExactPolygon)
+                               else geometry._polygon_area(polygon,radius)) for polygon,_ in regions])
         if not np.allclose(represented,areas,rtol=2e-9,atol=reference_area*2e-11):
             raise ValueError('Exact burial regions exceed binary64 area representation accuracy.')
         error = abs(float(areas.sum())-reference_area)/reference_area
