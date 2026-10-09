@@ -30,4 +30,14 @@ One physical fixture at a -6,000 m basement uses 100 km² of source equivalent (
 
 `tests/test_arc_points_ui.cjs` checks map/globe projection, longitude seam and pole behavior, screen sizing, hover and legacy-frame clearing. Browser screenshot review was unavailable in this environment; visual clipping and contrast have not been independently checked.
 
-Saved-world validation and its measured results are recorded in the pull request. No live-run adoption follows from these tests.
+## Saved-world validation
+
+An isolated pending-source transaction on the preserved 176 Myr checkpoint created 18 compact foundations (432 faces), placing 64,128.835 km³ into 7,019.218 km² of new crust. Existing-arc deposition remained 18,272.867 km³, for 82,401.702 km³ placed in total. Pending point features decreased from 1,324 to 1,298; 5,101,614.252 km³ remained pending.
+
+All 18 new foundations were submerged: their reconstructed surfaces remained between approximately -4,579 and -2,146 m. These are crust foundations, not 18 emerged islands. Later accumulation must build their surface to sea level.
+
+The source-volume residual was 1.05 × 10⁻⁹ km³ and the physical-volume residual was -1.35 × 10⁻⁶ km³; existing conservation tolerances passed. Strict frame checks, normal zero-time raster/domain refresh, typed checkpoint reload and snapshot revalidation passed. The source checkpoint, production source files, configuration, tectonic time, existing vertices and shared random state remained unchanged. The full transaction output was byte-identical across the repeated trials.
+
+This validates the pending-material transaction and its saved-state representation. It does not constitute a multi-step tectonic integration or live-run adoption. Separate focused tests exercise later ordinary growth and local deposition into a newly promoted compact patch.
+
+The selected regression checks include 198 passing Python tests and 33 passing UI tests. Four inherited failing cases and four cases requiring unavailable private fixtures remain documented in the pull request; the inherited suite is not wholly green.
