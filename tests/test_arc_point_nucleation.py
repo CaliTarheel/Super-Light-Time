@@ -444,6 +444,88 @@ class PointPromotionTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     points.validate_frame(altered)
 
+    def test_compact_foundation_accepts_later_growth_or_local_deposition_conservatively(self):
+        import crust_inventory
+        import native_material_evolution
+
+        for birth_area, expected_mode in ((100., "deposition"), (1000., "growth")):
+            with self.subTest(birth_area=birth_area, expected_mode=expected_mode):
+                state = deepcopy(self.initial)
+                xyz = positions_in_cell(state)[0]
+                first, _ = qualified_source(state, xyz, birth_area)
+                born = supply(state, [xyz], [birth_area], [first])
+                self.assertEqual(born["new_faces"], 24)
+                self.assertTrue(any("point_promotion" in row for row in
+                    born["emplacement_geometry"]["sources"]))
+                native_material_evolution.ensure_lineage(state)
+                lineage = deepcopy(state.material_lineage)
+                identity = {name: getattr(state, name).copy() for name in
+                    ("parcel_patch", "parcel_arc_id", "parcel_plate", "trace_patch", "trace_id")}
+                old_placements = deepcopy(state.native_arc_source_placements)
+                old_mass = state.mass.copy()
+                old_surface = {name: state.material_surface[name].copy()
+                    for name in ("vertices", "faces", "area_km2", "reference_area_km2")}
+                old_volume = float(state.material_surface["area_km2"] @
+                                   state.structure["thickness_km"])
+                before_grade = profile.measure(state.material_surface["vertices"],
+                    state.material_surface["faces"], state.material_surface["area_km2"],
+                    columns.elevation(state.structure), state.parcel_arc_basal_m)["face_grade"]
+
+                state.t = 1.
+                second, _ = qualified_source(state, xyz, 50., links=[first["origin_id"]])
+                later = supply(state, [xyz], [50.], [second])
+                self.assertEqual(later["new_faces"], 0)
+                self.assertGreater(later["added_volume_km3"], 0.)
+                self.assertEqual({row["mode"] for row in
+                    later["emplacement_geometry"]["sources"]}, {expected_mode})
+                self.assertAlmostEqual(later["added_volume_km3"] +
+                    later["pending_magma_volume_km3"], 1250., places=7)
+                actual_volume = float(state.material_surface["area_km2"] @
+                                      state.structure["thickness_km"])
+                self.assertAlmostEqual(actual_volume - old_volume,
+                                       later["added_volume_km3"], places=7)
+                self.assertAlmostEqual(float(state.mass @
+                    state.structure["added_volume_km_per_reference_km2"]),
+                    actual_volume, places=7)
+                for name, value in identity.items():
+                    np.testing.assert_array_equal(getattr(state, name), value, err_msg=name)
+                for name, value in lineage.items():
+                    np.testing.assert_array_equal(state.material_lineage[name], value, err_msg=name)
+                self.assertEqual(state.native_arc_source_placements[:len(old_placements)],
+                                 old_placements)
+                placed = sum(row["volume_km3"] for row in state.native_arc_source_placements
+                    if row["source_provenance"]["origin_id"] == second["origin_id"])
+                held = sum(float(area) * 25. for area, origin in
+                    zip(state.native_arc_pending["area"],
+                        state.native_arc_pending["source_provenance"])
+                    if origin["origin_id"] == second["origin_id"])
+                self.assertAlmostEqual(placed + held, 1250., places=7)
+                for fields in (state.structure, state.trace_structure):
+                    columns._state(fields)
+                    crust_inventory.validate(fields)
+                    self.assertTrue(np.all((fields["thickness_km"] >= 8.) &
+                                           (fields["thickness_km"] <= 75.)))
+                after_grade = profile.measure(state.material_surface["vertices"],
+                    state.material_surface["faces"], state.material_surface["area_km2"],
+                    columns.elevation(state.structure), state.parcel_arc_basal_m)["face_grade"]
+                self.assertTrue(np.all(after_grade <=
+                    np.maximum(profile.MAX_GRADE, before_grade) + 1e-10))
+                if expected_mode == "deposition":
+                    self.assertGreater(held, 0.)
+                    np.testing.assert_array_equal(state.mass, old_mass)
+                    for name, value in old_surface.items():
+                        np.testing.assert_array_equal(state.material_surface[name], value, err_msg=name)
+                else:
+                    self.assertEqual(held, 0.)
+                    self.assertAlmostEqual(float(state.mass.sum() - old_mass.sum()), 50., places=8)
+                    self.assertGreater(np.max(np.abs(state.material_surface["vertices"] -
+                                                     old_surface["vertices"])), 0.)
+                frame = dict(arcs.snapshot_fields(state), arc_material_diagnostics=later,
+                             stats=deepcopy(state.process_totals), time_myr=state.t)
+                points.validate_frame(frame)
+                profile.validate_frame(frame)
+                geometry.validate_frame(frame)
+
     def test_typed_checkpoint_then_next_observation_repeats_geometry_and_origin_receipts(self):
         state = self.state
         xyz, first = self.pending_source()
