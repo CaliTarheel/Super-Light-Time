@@ -205,6 +205,31 @@ class PendingPointTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     points.validate_frame(altered)
 
+    def test_oriented_snapshot_rotates_pending_points_with_canonical_source_geometry(self):
+        from orientation import orient_frame, rotation_matrix
+
+        state = pending_fixture()
+        frame = point_frame(state)
+        frame.update(width=8, height=4, crust=np.zeros(32, np.uint8))
+        frozen = pickle.dumps(frame, protocol=5)
+        source_xyz = np.asarray(frame["arc_pending_source"]["geometry_xyz"])
+        original = frame["volcanic_point_features"][0]
+        for angles in (dict(yaw=180.), dict(pitch=90.),
+                       dict(yaw=177., pitch=89., roll=31.)):
+            with self.subTest(angles=angles):
+                oriented = orient_frame(frame, angles)
+                self.assertEqual(points.validate_frame(oriented), 1)
+                expected = source_xyz @ rotation_matrix(angles)
+                feature = oriented["volcanic_point_features"][0]
+                np.testing.assert_allclose(feature["geometry_xyz"], expected,
+                                           rtol=0., atol=2e-15)
+                np.testing.assert_array_equal(feature["geometry_xyz"],
+                    oriented["arc_pending_source"]["geometry_xyz"])
+                for field in ("id", "owner", "owner_uid", "volume_km3",
+                              "source_time_myr", "status", "reason"):
+                    self.assertEqual(feature[field], original[field], msg=field)
+                self.assertEqual(pickle.dumps(frame, protocol=5), frozen)
+
     def test_absent_version_keeps_legacy_state_and_explicit_old_profile_disables_points(self):
         state = pending_fixture()
         del state.native_arc_point_version
@@ -268,6 +293,56 @@ class PointPromotionTests(unittest.TestCase):
         self.assertEqual(result["added_volume_km3"], 0.)
         for name, value in arrays(state).items():
             np.testing.assert_array_equal(value, physical[name], err_msg=name)
+
+    def test_post_admission_empty_containment_rejects_compact_and_legacy_receipts(self):
+        from unittest.mock import patch
+        import arc_cohort_footprint
+
+        state = self.state
+        xyz = positions_in_cell(state)[0]
+        source, _ = qualified_source(state, xyz, 1000.)
+        before = arrays(state)
+        real_admit = geometry.admit
+        real_contained = arc_cohort_footprint.contained
+        positive_admissions = []
+
+        def admit_then_arm(*args, **kwargs):
+            admitted = real_admit(*args, **kwargs)
+            if admitted["accepted_area_km2"] > 0.:
+                positive_admissions.append(admitted["accepted_area_km2"])
+            return admitted
+
+        def lose_containment_after_admission(candidate, queries):
+            if positive_admissions:
+                return np.zeros(len(queries), bool)
+            return real_contained(candidate, queries)
+
+        # Keep initial cohort construction and both geographic admissions real.
+        # Only the final contributor-containment check loses its anchor.
+        with patch.object(geometry, "admit", side_effect=admit_then_arm), \
+             patch.object(arc_cohort_footprint, "contained",
+                          side_effect=lose_containment_after_admission):
+            report = supply(state, [xyz], [1000.], [source])
+
+        self.assertEqual(len(positive_admissions), 2)
+        self.assertEqual(report["new_faces"], 0)
+        self.assertEqual(report["added_volume_km3"], 0.)
+        self.assertEqual(report["pending_magma_volume_km3"], 25000.)
+        np.testing.assert_array_equal(state.native_arc_pending["xyz"], [xyz])
+        np.testing.assert_array_equal(state.native_arc_pending["area"], [1000.])
+        decisions = report["emplacement_geometry"]["sources"]
+        self.assertEqual(len(decisions), 1)
+        for row in decisions:
+            self.assertEqual(row["accepted_area_km2"], 0.)
+            self.assertEqual(row["pending_area_km2"], 1000.)
+            self.assertIsNone(row["accepted_footprint"])
+            self.assertNotIn("point_promotion", row)
+            self.assertEqual([attempt["strategy"] for attempt in row["point_attempts"]],
+                             ["point", "legacy"])
+            self.assertTrue(all(attempt["accepted_area_km2"] == 0.
+                                for attempt in row["point_attempts"]))
+        for name, value in arrays(state).items():
+            np.testing.assert_array_equal(value, before[name], err_msg=name)
 
     def test_failed_promotion_retry_retains_exact_sources_and_no_material(self):
         state = self.state

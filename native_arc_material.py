@@ -647,7 +647,7 @@ def add_arc_crust(s,cells,additions,*,positions=None,owners=None,source_provenan
                         admission['accepted_area_km2']=0.;admission['plan']=None;break
                     target=float(all_area[inside].sum())
                 accepted=float(admission['accepted_area_km2']);plan=admission['plan']
-                row.update(admission['diagnostics'],requested_area_km2=area,
+                row.update(admission['diagnostics'],requested_area_km2=area,accepted_area_km2=accepted,
                            pending_area_km2=area-accepted,geometry_evaluations=evaluations)
                 if accepted>0:
                     chosen=birth_candidate(first,accepted,strategy)
@@ -658,7 +658,9 @@ def add_arc_crust(s,cells,additions,*,positions=None,owners=None,source_provenan
                                    physical_emplacement_rejected='constructive_profile_capacity')
                         plan=None
                 else:
-                    row['profile_capacity']=dict(version=1,admissible=False,reason='no_geographic_footprint')
+                    row['profile_capacity']=dict(version=1,admissible=False,
+                        reason='source_containment' if not len(spending) else 'no_geographic_footprint')
+            if row['accepted_area_km2']<=0.:row['accepted_footprint']=None
             attempts.append(dict(strategy=strategy,accepted_area_km2=float(row['accepted_area_km2']),
                 reason=row['profile_capacity']['reason']))
             if row['accepted_area_km2']>0:
