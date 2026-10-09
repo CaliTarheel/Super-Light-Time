@@ -293,18 +293,30 @@ class _PartitionGeometrySession:
             _GEOMETRY_REUSE.bypass()
             return None
         try:
+            # A partition reads only its lower triangle and the selected upper
+            # triangles. Appending an unrelated arc foundation must not evict
+            # every unchanged continental stack. Retain the original indices
+            # and selection order because region covers expose those labels.
+            # Unsupported indexing stays on the original kernel/error path.
+            if (self.triangles.ndim != 3 or self.triangles.shape[1:] != (3, 3)
+                    or self.upper.ndim != 1 or self.upper.dtype.kind not in 'iu'
+                    or type(selected) is not np.ndarray or selected.ndim != 1
+                    or selected.dtype.kind not in 'iu'
+                    or isinstance(face, (bool, np.bool_))
+                    or not isinstance(face, (int, np.integer))):
+                raise TypeError('Local partition reuse requires ordinary integer indices.')
+            dependencies = (_array_geometry_key(self.triangles[face]),
+                            _array_geometry_key(self.upper[selected]),
+                            _array_geometry_key(self.triangles[self.upper[selected]]))
             arguments = (_scalar_geometry_key(face), _array_geometry_key(selected),
                          _scalar_geometry_key(reference_area), _scalar_geometry_key(radius), _geometry_arithmetic_key())
-        except TypeError:
+        except (TypeError, IndexError, ValueError):
             _GEOMETRY_REUSE.bypass()
             return None
-        # A source-generation change clears the old roots before interning.
+        # Exact local bytes, not identities or rounded geometry. The bounded
+        # entry payload includes these bytes; no whole-scene roots are retained.
         _GEOMETRY_REUSE._generation('partition', _partition_face_uncached)
-        records = _GEOMETRY_REUSE._intern_many(self.keys)
-        if records is None:
-            _GEOMETRY_REUSE.bypass()
-            return None
-        return ('partition', tuple(record[0] for record in records), arguments), (self.keys, arguments)
+        return ('partition-local-v1', dependencies, arguments), (dependencies, arguments)
 
     def partition_face(self, face, selected, reference_area, radius):
         cached = self._cache_key(face, selected, reference_area, radius)
@@ -335,20 +347,10 @@ class _PartitionGeometrySession:
             return
         # The same key partition_face builds; faces that cannot be keyed stay serial.
         keys, missing = [None]*len(jobs), []
-        _GEOMETRY_REUSE._generation('partition', _partition_face_uncached)
-        records = _GEOMETRY_REUSE._intern_many(self.keys)
-        if records is not None:
-            roots = tuple(record[0] for record in records)
-            for index, (face, selected, reference_area, radius) in enumerate(jobs):
-                try:
-                    arguments = (_scalar_geometry_key(face), _array_geometry_key(selected),
-                                 _scalar_geometry_key(reference_area), _scalar_geometry_key(radius),
-                                 _geometry_arithmetic_key())
-                except TypeError:
-                    continue
-                keys[index] = ('partition', roots, arguments), (self.keys, arguments)
-                if not _GEOMETRY_REUSE.contains(keys[index][0]):
-                    missing.append(index)
+        for index, job in enumerate(jobs):
+            keys[index] = self._cache_key(*job)
+            if keys[index] is not None and not _GEOMETRY_REUSE.contains(keys[index][0]):
+                missing.append(index)
         computed = {}
         if len(missing) >= MIN_PARALLEL_PARTITION_FACES:
             computed = self._parallel(runtime, [jobs[index] for index in missing], missing, modes)

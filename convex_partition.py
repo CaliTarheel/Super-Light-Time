@@ -12,7 +12,14 @@ import numpy as np
 def _clean(points):
     points=np.asarray(points,float).reshape(-1,3)
     if len(points)>1:
-        points=points[np.any(points!=np.roll(points,1,axis=0),axis=1)]
+        # Compare the same cyclic neighbours without copying all coordinates
+        # into a rolled array. Keep the first-vs-last comparison separate so
+        # closing duplicates, signed zeros and nonfinite values retain exactly
+        # the original comparison semantics and surviving vertex order.
+        different=np.empty(points.shape,bool)
+        np.not_equal(points[0],points[-1],out=different[0])
+        np.not_equal(points[1:],points[:-1],out=different[1:])
+        points=points[np.any(different,axis=1)]
     return points
 
 
