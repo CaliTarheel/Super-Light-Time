@@ -354,6 +354,21 @@ def _minimize(model, initial, cost, *, relax_common=True):
     """Convex Newton solve with an exact one-sided plastic cut/KKT bound."""
     x = np.asarray(initial, float).copy()
     x[-1] = 0.
+    intake = getattr(model, 'intake_constraints', None)
+    if intake is not None and len(intake['rows']):
+        import constrained_plate_motion
+        bound = np.zeros(model.size); bound[-1] = 1.
+        rows = np.vstack((intake['rows'], bound))
+        minimum = np.r_[intake['minimum'], 0.]
+        linear_cost = cost*bound
+        if not relax_common:
+            raise ValueError('Persistent-intake breakup requires relaxing the coupled common plate motions.')
+        motion, reaction, solver = constrained_plate_motion.solve(model, rows, minimum,
+            linear_cost=linear_cost, initial=x)
+        model.intake_reaction = reaction[:-1]
+        model.intake_solver = solver
+        gradient = model._evaluate(motion, _FINAL_WIDTH)[1]+linear_cost-intake['rows'].T@reaction[:-1]
+        return motion, dict(solver, opening_bound_gradient_w=float(gradient[-1]))
     iterations, backtracks = 0, 0
     def evaluate(value, delta):
         potential, gradient, hessian, _, _ = model._evaluate(value, delta)
@@ -461,7 +476,8 @@ def solve(s, plate, cells, piece, axis, cut_geometry, strength, balance, *,
     except balance_force_ledger.UnsupportedForceLedger as exc:
         return _zero(f'The complete local operator mapping is unavailable: {exc}')
     certificate, fast_reason = None, 'Fast path explicitly disabled.'
-    if allow_zero_fast_path and relax_common:
+    has_intake = bool(ledger.get('local_constraints'))
+    if allow_zero_fast_path and relax_common and not has_intake:
         certificate, fast_reason = _zero_certificate(s, balance, ledger, plate, cells, piece,
                                                      axis, cut['yield_w'])
     if certificate is not None:
@@ -506,6 +522,10 @@ def solve(s, plate, cells, piece, axis, cut_geometry, strength, balance, *,
     if restriction_error > _COMMON_RESTRICTION_TOLERANCE:
         return _zero(f'Virtual common restriction differs from the active Balance ({restriction_error:g}).')
     onset = model._evaluate(initial, _FINAL_WIDTH)[1][-1]
+    if has_intake:
+        # Onset uses the current reaction; finite opening below re-solves the
+        # original constraint operators and all their multipliers together.
+        onset -= float(model.intake_constraints['rows'][:, -1]@balance.intake_reaction)
     # Independent adjoint check: the accepted spatial force ledger must have
     # the same differential virtual work as the retained finite operators.
     local_work = 0.
@@ -524,6 +544,10 @@ def _finish(s, plate, axis, balance, motion, fraction, cut, solver, power_model,
             restriction_error, onset_error, onset, relax_common, certificate, fast_reason):
     plastic, passivity = power_model._resistance_work(power_motion, _FINAL_WIDTH)
     driving = float(power_model.torque@power_motion)
+    intake_power = 0.
+    if len(getattr(power_model, 'intake_reaction', ())):
+        intake_power = float(power_model.intake_reaction@(power_model.intake_constraints['rows']@power_motion))
+        driving += intake_power
     resisting = float(power_motion@power_model.stiffness@power_motion)+sum(plastic.values())
     cut_power = float(cut['yield_w']*motion[-1])
     closure = driving-resisting-cut_power
@@ -554,6 +578,7 @@ def _finish(s, plate, axis, balance, motion, fraction, cut, solver, power_model,
         zero_rate_fast_path_reason=fast_reason,
         zero_rate_certificate=certificate,
         mode_work=dict(driving_power_w=driving, resisting_power_w=resisting, cut_power_w=cut_power,
+                       persistent_intake_source_power_w=intake_power,
                        closure_absolute_w=abs(closure), closure_relative=relative_closure,
                        interpretation='Condensed generalized plate power at fixed geometry/current cut strength; '
                          'not total uncondensed slab power or finite-time qualification.'),

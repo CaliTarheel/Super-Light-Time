@@ -27,6 +27,37 @@ New reviewed Lite worlds select **Start with several ocean plates and ridges** b
 
 Fresh reviewed worlds record `normal_spreading_version = 1`: any positive normal opening can create paired ocean crust, including slow or highly oblique opening. Previously, creation required more than 2 km/Myr (0.2 cm/year) and 15% of the sliding speed, while normal-motion consumption admitted any closing speed. The new policy retains the existing finite-geometry, material-exclusion and local capacity checks; it adds no driving force or prescribed velocity. Historical states without the marker retain their previous spreading gate, and source compatibility checks still apply to their checkpoints. Legacy raster dynamics are unchanged.
 
+An **opt-in persistent ocean intake experiment** lets 0 MY initialize normally, then latches each trench after its first accepted ocean consumption. Later force solves keep every matched, oceanic part of that trench closing. Rates can vary above a configurable floor; the experiment uses **0.1 cm/year (1 km/Myr)**, which is a modeling choice, not a measured tectonic constant. Incoming continental material releases the local ocean-intake constraint. Trench identity and attachment history survive supported plate splits.
+
+Install the optional solver with `python -m pip install -r requirements-intake.txt`. A fresh Lite configuration can select:
+
+```json
+{
+  "effective_subduction": {
+    "enabled": true,
+    "force_n_per_m": 3e13,
+    "persistent_intake": {
+      "enabled": true,
+      "minimum_intake_cm_yr": 0.1,
+      "breakup_mode": "on_conflict"
+    }
+  },
+  "force_limit_rifting": {"enabled": false}
+}
+```
+
+The intake constraint adds equal-and-opposite attachment forces and explicitly reported source power **in addition to** the fixed slab pull. It represents a prescribed persistence rule with an unresolved power source, not a resolved slab-energy prediction. `on_conflict` advances whenever constrained motion is feasible. When rigid motion cannot meet all intake obligations, it tests yielded continental or oceanic cuts on isolated copies and ranks them by remaining intake shortfall, then supplied attachment power and cut length. It keeps one improving cut and solves motion again, stopping fracture searches as soon as intake is feasible. Every old intake operator must survive the split; dropping a trench cannot improve the score. It assigns neither an opening distance nor a velocity impulse; this idealization omits fracture surface energy and gradual necking. Intact cratons, material conservation, daughter viability, and force-convergence checks still apply. The bounded cut search does not establish absence of failure in unsearched directions. If geometrically incompatible intake cannot be relieved by a supported cut, the operation rolls back rather than silently dropping a trench.
+
+Alternatively, `breakup_mode: "gradual"` can be paired with enabled `force_limit_rifting`; the existing rift-development delay remains, and the full attachment operators and their reactions are re-solved for each candidate opening mode. Historical checkpoints do not acquire either policy. Fresh activation records the exact SciPy version for continuation. These options do not alter the production guardian requirements above.
+
+For an isolated engine experiment from saved starting files, run:
+
+```sh
+python benchmarks/persistent_intake_replay.py --config /path/to/config.json --initial /path/to/initial.json --run-id intake-experiment --end-myr 20 --viewer-url http://localhost:8766
+```
+
+This retains the supplied seed and artwork, selects 3e13 N/m pull and `on_conflict`, and saves the inputs, exact engine sources, checkpoints and diagnostics in a new run directory. It advances in 1 MY steps under the cooperative engine budget and publishes completed snapshots to the local viewer. Selecting a different saved experiment stops automatic viewer updates without stopping the diagnostic worker. The worker is separate from the viewer; closing the page does not stop it. These snapshots remain view-only in the production server.
+
 | Location | Contents |
 | --- | --- |
 | Root Python modules and `web/` | The recorded runtime baseline, with this branch's source changes described in [Coarse handoff](docs/COARSE_HANDOFF.md). |

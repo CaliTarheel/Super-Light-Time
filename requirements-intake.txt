@@ -1,0 +1,3 @@
+# Optional solver for the explicitly enabled persistent-ocean-intake experiment.
+-r requirements.txt
+scipy==1.16.2

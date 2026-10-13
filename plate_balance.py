@@ -38,6 +38,11 @@ historical smooth-tail law for existing checkpoints; that law can supply
 negative resisting work and must not be interpreted as passive friction.
 Actual resisting work x.grad(D) is reported separately from the potential D.
 
+The explicitly enabled persistent-ocean-intake experiment adds positive local
+intake constraints after actual ocean feeding. Their paired reactions and
+additional supplied power are separate from the prescribed slab force. This
+is a versioned modeling rule; absent state retains the unconstrained balance.
+
 WHAT IS NOT MODELLED, stated so nothing here is mistaken for a measurement:
 slab dip (fixed, see slab_memory.SUBDUCTION_DIP_DEG), slab tip depth, along-slab
 age structure, lower-mantle slab support, trench suction as a separate term,
@@ -352,6 +357,8 @@ class Balance:
         self._viscous()
         self._drive()
         self._plastic()
+        import persistent_ocean_intake
+        self.intake_constraints = persistent_ocean_intake.assemble(self)
         import entry_regions
         if entry_regions.enabled(s):
             if not slab_tethers:
@@ -853,11 +860,11 @@ class Balance:
         """Constitutive velocities; reduced modes preserve native common width."""
         return operator@x
 
-    def _evaluate(self, x, delta, want_derivatives=True):
+    def _evaluate(self, x, delta, want_derivatives=True, *, want_hessian=True):
         value = .5*x@self.stiffness@x-self.torque@x
         gradient = self.stiffness@x-self.torque if want_derivatives else None
         force_reference = np.abs(self.stiffness)@np.abs(x)+np.abs(self.torque) if want_derivatives else None
-        hessian = self.stiffness.copy() if want_derivatives else None
+        hessian = self.stiffness.copy() if want_derivatives and want_hessian else None
         parts = {}
         if len(self.hinge_coefficient):
             speed = self._row_rates(self.hinge, x)
@@ -869,7 +876,7 @@ class Balance:
                 gradient += (weight*closing)@self.hinge
                 force_reference += np.abs(weight*closing)@np.abs(self.hinge)
                 active = self.hinge[closing < 0.]
-                if len(active):
+                if len(active) and want_hessian:
                     hessian += np.einsum('e,ei,ej->ij', weight[closing < 0.], active, active)
         yielded = {}
         version = getattr(self, 'resistance_version', 0)
@@ -885,7 +892,8 @@ class Balance:
                     if want_derivatives:
                         gradient += coefficient*first
                         force_reference += np.abs(coefficient*first)
-                        hessian += coefficient*second
+                        if want_hessian:
+                            hessian += coefficient*second
                 parts[element['kind']] = work
                 yielded[element['kind']] = count
                 value += work
@@ -909,11 +917,12 @@ class Balance:
                     direction = (closed[:, None]*jn+tangential[:, None]*tangent)/magnitude[:, None]
                     gradient += coefficient@direction
                     force_reference += np.abs(coefficient)@np.abs(direction)
-                    weight = coefficient/magnitude
-                    hessian += np.einsum('e,ei,ej->ij', weight, jn, jn)
-                    hessian += np.einsum('e,ei,ej->ij', weight, tangent, tangent)
-                    hessian += np.einsum('e,ei,ej->ij', weight*closed*second, normal, normal)
-                    hessian -= np.einsum('e,ei,ej->ij', coefficient/magnitude, direction, direction)
+                    if want_hessian:
+                        weight = coefficient/magnitude
+                        hessian += np.einsum('e,ei,ej->ij', weight, jn, jn)
+                        hessian += np.einsum('e,ei,ej->ij', weight, tangent, tangent)
+                        hessian += np.einsum('e,ei,ej->ij', weight*closed*second, normal, normal)
+                        hessian -= np.einsum('e,ei,ej->ij', coefficient/magnitude, direction, direction)
                 continue
             (operator,) = element['rows']
             rate = self._row_rates(operator, x)
@@ -929,7 +938,8 @@ class Balance:
             if want_derivatives:
                 gradient += (coefficient*first)@operator
                 force_reference += np.abs(coefficient*first)@np.abs(operator)
-                hessian += np.einsum('e,ei,ej->ij', coefficient*second, operator, operator)
+                if want_hessian:
+                    hessian += np.einsum('e,ei,ej->ij', coefficient*second, operator, operator)
         if want_derivatives:
             self._reference_gradient=gradient
             self._force_reference=force_reference
@@ -1034,6 +1044,15 @@ class Balance:
     def solve(self):
         if not self.size:
             return np.zeros(0), {}
+        constraints = getattr(self, 'intake_constraints', None)
+        if constraints is not None and len(constraints['rows']):
+            import constrained_plate_motion
+            self.x, self.intake_reaction, self.intake_solver = constrained_plate_motion.solve(
+                self, constraints['rows'], constraints['minimum'])
+            self.iterations = self.intake_solver['iterations']
+            self.backtracks = 0
+            self.linear = self.stiffness.copy()
+            return self.x
         x, linear = self._warm_start()
         import numerical_accuracy
         force_tolerance=(numerical_accuracy.OUTER_RELATIVE_TOLERANCE if numerical_accuracy.version(self.s)
@@ -1104,6 +1123,24 @@ class Balance:
         viscous_work = float(self.x@self.stiffness@self.x)
         driver_work = float(self.torque@self.x)
         total_work = viscous_work+sum(work.values())
+        if len(getattr(self, 'intake_reaction', ())):
+            import constrained_plate_motion
+            constraints = self.intake_constraints
+            reaction = constraints['rows'].T@self.intake_reaction
+            source_power = float(self.intake_reaction@(constraints['rows']@self.x))
+            error = constrained_plate_motion.residual(self, gradient, constraints['rows'], self.intake_reaction)
+            gradient = gradient-reaction
+            self._reference_gradient = gradient
+            self._force_reference = self._force_reference+np.abs(constraints['rows']).T@self.intake_reaction
+            driver_work += source_power
+            self.notes['persistent_ocean_intake'] = dict(self.intake_solver,
+                minimum_rate_cm_yr=float(np.min(constraints['rows']@self.x)),
+                prescribed_floor_cm_yr=float(np.min(constraints['minimum'])),
+                added_source_power_w=source_power,
+                force_relative_residual=error,
+                integrated_reaction_force_n=float(self.intake_reaction.sum()/CM_YR_M_S),
+                interpretation='Additional paired attachment reactions; supplied power belongs to '
+                    'the prescribed intake rule, independently of the fixed slab-pull coefficient.')
         speeds, rms = {}, {}
         for plate in self.plates:
             fraction = self._support(plate)
@@ -1120,6 +1157,11 @@ class Balance:
         for name, vector in self.drivers.items():
             drive[name] = {str(s.names[p]): float(np.linalg.norm(vector[3*i:3*i+3])*RADIUS_M/CM_YR_M_S)
                            for p, i in self.slot.items()}
+        if len(getattr(self, 'intake_reaction', ())):
+            scale = max(scale, float(np.linalg.norm(reaction)))
+            drive['persistent_ocean_intake'] = {
+                str(s.names[p]): float(np.linalg.norm(reaction[3*i:3*i+3])*RADIUS_M/CM_YR_M_S)
+                for p, i in self.slot.items()}
         weld = []
         element = next((e for e in self.elements if e['kind'] == 'suture_weld'), None)
         for position, record in enumerate(self.weld_rows if element is not None else ()):
