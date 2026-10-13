@@ -246,7 +246,7 @@
     if (config.effective_subduction !== undefined || config.seed !== undefined) {
       state.detailedSubductionDraft = null;
       $("subduction-force-law").value = config.effective_subduction?.enabled ? "effective" : "slab";
-      $("effective-subduction-force").value = (config.effective_subduction?.force_n_per_m ?? 5e12) / 1e12;
+      $("effective-subduction-force").value = (config.effective_subduction?.force_n_per_m ?? (freshDefaults ? 3e13 : 5e12)) / 1e12;
     }
     if (config.force_limit_rifting !== undefined || config.seed !== undefined) $("effective-force-rifting").checked = !!config.force_limit_rifting?.enabled;
     for (const key of ["continental_lifecycle", "rift_traction", "trench_persistence", "slab_allocation", "force_limit_rifting"]) {

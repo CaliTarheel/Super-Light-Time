@@ -5,6 +5,7 @@ the app's full detail settings: a 5,120-cell tectonic mesh, level-4 coastlines,
 adaptive detail level 1, 1,024 rift mechanics nodes, a 512 × 256 review map, and
 saved frames every 2 Myr. Terrain and export quality controls remain available.
 The shorter duration is for reviewing the new force law.
+Its effective trench force is `3e13 N/m`, the selected Asein Lite starting value.
 
 Create the matching initial map from the fork root:
 

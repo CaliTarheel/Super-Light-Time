@@ -41,8 +41,9 @@ not establish a general production speedup.
 
 New worlds in the app select **Force balance · revised physics** and **Lite ·
 effective trench force** under **Subduction force law**. This selects declared
-starting subduction margins. The pull input uses **10¹² N/m**: `5` is
-`5e12 N/m`. This new-run choice replaces detailed slab entry, slab-driven rift
+starting subduction margins. The pull input uses **10¹² N/m**: the new-world
+default `30` is `3e13 N/m`, matching the Asein Lite history's selected starting
+force. This new-run choice replaces detailed slab entry, slab-driven rift
 traction and rollback behavior with compatible fixed-trench and immediate
 foundering closures. The unused detailed controls are hidden; switching back to
 the slab law restores their saved draft choices. The starting artwork, mixed
@@ -64,7 +65,7 @@ python run_simulation.py --initial my-start.json
 Lite is the user-facing fork name. Existing `effective_subduction` configuration
 keys, command-line flags and checkpoint versions keep their meanings.
 
-Use `--subduction-force-n-per-m 5e12` to set its force explicitly. Supplying that
+Use `--subduction-force-n-per-m 3e13` to set its force explicitly. Supplying that
 flag or `--effective-subduction` selects Lite when overriding a saved
 configuration. `--no-effective-subduction` selects the detailed fresh laws when
 no file is supplied, or disables Lite on a supplied configuration. `--config`
@@ -72,12 +73,28 @@ without either override preserves the saved mode and force. An inherited finite
 trench selection is used unless the configuration supplies one. These commands create fresh histories;
 they do not convert or resume a detailed slab checkpoint under another law.
 
+The new-world default was raised from `5e12` to `3e13 N/m` at the user's request
+to match the Asein Lite run `20261002-122914-072bbc`. It is a chosen modeling
+parameter, not a new physical calibration or a guarantee of plate speed.
+Geometry, incoming-plate ownership, force direction, and resistance still
+determine the response. This retains the documented approximation of Scotese's
+slab-driven motion rules; no additional motion driver or velocity kick is added.
+
+An omitted force in a fresh Lite request, including `--effective-subduction`,
+now receives `3e13`. An explicit force is preserved. A saved `--config` file
+without an explicit override keeps its historical missing-field meaning
+(`5e12` for an enabled Lite law); an explicit Lite opt-in uses `3e13` if the
+file did not specify a force. Engine normalization and saved checkpoint helper
+sources retain their historical defaults. The guarded Super-Light-Time server
+still needs the startup/controller preparation described in
+[Current mode](../CURRENT_MODE.md); changing these defaults does not supply it.
+
 A compatible configuration is:
 
 ```json
 {
   "physics_profile": "reviewed_v1",
-  "effective_subduction": {"enabled": true, "force_n_per_m": 5e12},
+  "effective_subduction": {"enabled": true, "force_n_per_m": 3e13},
   "primordial_subduction": {
     "enabled": true,
     "target_margin_fraction": 0.35,
@@ -95,7 +112,7 @@ A compatible configuration is:
 `primordial_subduction` supplies the declaration geometry and polarity in this
 mode. Its historical `initial_slab_depth_km` field has no force or inventory
 effect. No inherited slab mass, artificial elapsed time or startup velocity is
-created. The force must be finite and positive; `5e12 N/m` is a chosen experiment
+created. The force must be finite and positive; `3e13 N/m` is a chosen experiment
 parameter, not a calibrated universal trench strength.
 
 Detailed `continental_lifecycle`, `rift_traction`, thermal retained phases,

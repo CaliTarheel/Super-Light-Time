@@ -18,12 +18,13 @@ run's config.json, so the saved world never depends on this table again.
 from copy import deepcopy
 
 REVIEWED_PROFILE = 'reviewed_v1'
+DEFAULT_EFFECTIVE_FORCE_N_PER_M = 3e13
 
 # The prior detailed fresh selection remains available by explicitly disabling
 # effective_subduction. Neither table is an engine or saved-checkpoint default.
 DETAILED_FRESH_LAWS = dict(retained_phases='thermal_v1', subduction_response='moving_hinge_v1')
 REVIEWED_FRESH_LAWS = dict(
-    effective_subduction=dict(enabled=True, force_n_per_m=5e12),
+    effective_subduction=dict(enabled=True, force_n_per_m=DEFAULT_EFFECTIVE_FORCE_N_PER_M),
     primordial_subduction=dict(enabled=True),
     subduction_response='fixed_trench', retained_phases='disabled',
     continental_lifecycle=dict(enabled=False), rift_traction=dict(enabled=False),
@@ -48,6 +49,9 @@ def fresh_world_request(config=None, initial=None):
     elif isinstance(effective, dict) and 'enabled' not in effective:
         request['effective_subduction'] = dict(effective, enabled=True)
     lite = isinstance(request['effective_subduction'], dict) and request['effective_subduction'].get('enabled') is True
+    if lite and 'force_n_per_m' not in request['effective_subduction']:
+        request['effective_subduction'] = dict(request['effective_subduction'],
+                                               force_n_per_m=DEFAULT_EFFECTIVE_FORCE_N_PER_M)
     laws = REVIEWED_FRESH_LAWS if lite else DETAILED_FRESH_LAWS
     if (lite and request.get('primordial_subduction') is None and isinstance(initial, dict)
             and initial.get('initial_subduction') is not None):

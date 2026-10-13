@@ -15,6 +15,7 @@ class EffectiveSubductionCommandLineTests(unittest.TestCase):
     def test_explicit_opt_in_selects_compatible_laws(self):
         config = self.parse('--effective-subduction')
         self.assertTrue(config['effective_subduction']['enabled'])
+        self.assertEqual(config['effective_subduction']['force_n_per_m'], 3e13)
         self.assertTrue(config['primordial_subduction']['enabled'])
         self.assertEqual(config['physics_profile'], 'reviewed_v1')
         self.assertEqual(config['subduction_response'], 'fixed_trench')
@@ -31,6 +32,7 @@ class EffectiveSubductionCommandLineTests(unittest.TestCase):
     def test_normal_new_world_default_uses_lite_and_detailed_can_be_selected(self):
         default = self.parse()
         self.assertTrue(default['effective_subduction']['enabled'])
+        self.assertEqual(default['effective_subduction']['force_n_per_m'], 3e13)
         self.assertTrue(default['primordial_subduction']['enabled'])
         self.assertEqual(default['subduction_response'],'fixed_trench')
         self.assertEqual(default['retained_phases'],'disabled')
@@ -72,6 +74,19 @@ class EffectiveSubductionCommandLineTests(unittest.TestCase):
             self.assertTrue(native_engine.validate_config(config)['effective_subduction']['enabled'])
             disabled = self.parse('--config', str(path), '--no-effective-subduction')
             self.assertFalse(disabled['effective_subduction']['enabled'])
+
+    def test_opt_in_from_saved_config_without_force_uses_new_world_default(self):
+        scratch = Path(__file__).resolve().parents[1] / 'tmp'
+        scratch.mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=scratch) as folder:
+            path = Path(folder) / 'config.json'
+            for settings in (None, {}, {'enabled': True}, {'enabled': False}):
+                path.write_text(json.dumps(dict(physics_profile='reviewed_v1',
+                                                effective_subduction=settings)), encoding='utf-8')
+                with self.subTest(settings=settings):
+                    chosen = self.parse('--config', str(path), '--effective-subduction')
+                    self.assertEqual(chosen['effective_subduction'],
+                                     dict(enabled=True, force_n_per_m=3e13))
 
     def test_highland_initial_preset_uses_compatible_law_and_retains_its_declaration(self):
         base = dict(seed=41,width=96,height=48,physics_profile='reviewed_v1',

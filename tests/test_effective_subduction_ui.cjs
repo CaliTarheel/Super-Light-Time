@@ -7,6 +7,7 @@ const root = path.resolve(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'web/app.js'), 'utf8');
 const html = fs.readFileSync(path.join(root, 'web/index.html'), 'utf8');
 assert.match(html, /<option value="effective" selected>Lite · effective trench force<\/option>/);
+assert.match(html, /id="effective-subduction-force"[^>]*value="30"/);
 assert.match(html, /<title>Deep Time Lite · Tectonic laboratory<\/title>/);
 assert.match(source, /fillConfig\(result\.defaults \|\| result, \{ freshDefaults: true \}\)/);
 const nodes = new Map();
@@ -38,6 +39,17 @@ const effective = {seed:12,width:1024,physics_profile:'reviewed_v1',
   continental_lifecycle:{enabled:false},rift_traction:{enabled:false},
   force_limit_rifting:{enabled:true,heal_myr:40},
   trench_persistence:'kinematic',slab_allocation:'uniform'};
+// Fresh form defaults use the Asein force; saved forms retain historical meaning.
+for (const [settings, freshDefaults, displayed, force] of [
+  [{enabled:true}, true, 30, 3e13],
+  [{enabled:true}, false, 5, 5e12],
+  [{enabled:true,force_n_per_m:5e12}, true, 5, 5e12],
+]) {
+  sandbox.fillConfig({...effective,effective_subduction:settings}, {freshDefaults});
+  assert.equal(get('effective-subduction-force').value, displayed);
+  assert.deepEqual(json(sandbox.readConfig().effective_subduction),
+    {enabled:true,force_n_per_m:force});
+}
 sandbox.fillConfig(effective);
 let result = sandbox.readConfig();
 assert.deepEqual(json(result.effective_subduction), effective.effective_subduction);
@@ -147,7 +159,7 @@ assert.equal(sandbox.readConfig().primordial_subduction.target_margin_fraction,.
 // fallback selection an explicit user choice. Highland's finite selection wins.
 sandbox.state.initial={};
 sandbox.fillConfig({seed:42,width:512,physics_profile:'reviewed_v1',
-  effective_subduction:{enabled:true,force_n_per_m:5e12},
+  effective_subduction:{enabled:true,force_n_per_m:3e13},
   primordial_subduction:{enabled:true,target_margin_fraction:1,selection_seed:0},
   subduction_response:'fixed_trench',retained_phases:'disabled',
   continental_lifecycle:{enabled:false},rift_traction:{enabled:false},

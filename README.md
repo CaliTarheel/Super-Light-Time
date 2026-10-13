@@ -19,6 +19,11 @@ This command opens the local browser interface only. **It does not establish a v
 
 Inherited Lite configuration defaults and the included historical launchers do not make this production overlay portable. `run_simulation.py` is not a way to launch it as a fresh production run, and writing a configuration JSON cannot supply the missing owned process identities or receipt chain. See [Current mode](docs/CURRENT_MODE.md) for the preparation and acceptance requirements.
 
+New Lite world settings select **3e13 N/m** effective trench pull, matching the
+Asein Lite starting history. The form shows **30** in units of 10^12 N/m. Explicit
+force choices and saved histories retain their values; the startup/controller
+requirements above still apply.
+
 ## What is included
 
 | Location | Contents |

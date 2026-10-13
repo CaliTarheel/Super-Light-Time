@@ -47,7 +47,7 @@ class FreshWorldRequestTests(unittest.TestCase):
         self.assertEqual(config['enhanced_rifting'], SEP21T_RIFTING)
         self.assertEqual(config['subduction_response'], 'fixed_trench')
         self.assertEqual(fresh_world.REVIEWED_FRESH_LAWS['subduction_response'], 'fixed_trench')
-        self.assertEqual(config['effective_subduction'], {'enabled': True, 'force_n_per_m': 5e12})
+        self.assertEqual(config['effective_subduction'], {'enabled': True, 'force_n_per_m': 3e13})
         self.assertTrue(config['primordial_subduction']['enabled'])
         self.assertFalse(config['continental_lifecycle']['enabled'])
         self.assertFalse(config['rift_traction']['enabled'])
@@ -123,6 +123,25 @@ class FreshWorldRequestTests(unittest.TestCase):
         fresh_world.fresh_world_request(request)
         self.assertEqual(request, before)
 
+    def test_partial_fresh_lite_settings_use_asein_force_without_mutating_request(self):
+        for settings in ({}, {'enabled': True}):
+            request = dict(physics_profile='reviewed_v1', effective_subduction=settings)
+            before = deepcopy(request)
+            with self.subTest(settings=settings):
+                self.assertEqual(fresh(request)['effective_subduction'],
+                                 dict(enabled=True, force_n_per_m=3e13))
+                self.assertEqual(request, before)
+
+    def test_explicit_fresh_force_is_preserved_and_invalid_force_rejects(self):
+        for force in (5e12, 3e13, 9e12):
+            config = fresh(dict(physics_profile='reviewed_v1',
+                                effective_subduction=dict(enabled=True, force_n_per_m=force)))
+            self.assertEqual(config['effective_subduction']['force_n_per_m'], force)
+        for force in (None, 0., -1., float('nan'), float('inf'), True):
+            with self.subTest(force=force), self.assertRaises(ValueError):
+                fresh(dict(physics_profile='reviewed_v1',
+                           effective_subduction=dict(enabled=True, force_n_per_m=force)))
+
     def test_legacy_and_missing_profiles_are_unchanged(self):
         for request in ({}, {'physics_profile': 'legacy'}, {'seed': 3, 'width': 128, 'height': 64},
                         {'physics_profile': 'legacy', 'enhanced_rifting': {'seed': 9}}):
@@ -149,6 +168,7 @@ class FreshWorldRequestTests(unittest.TestCase):
         self.assertEqual(native_engine.NATIVE_DEFAULTS['retained_phases'], 'disabled')
         self.assertIsNone(native_engine.NATIVE_DEFAULTS['enhanced_rifting'])
         self.assertFalse(config['effective_subduction']['enabled'])
+        self.assertEqual(config['effective_subduction']['force_n_per_m'], 5e12)
 
     def test_selection_is_outside_the_hashed_engine_sources(self):
         # Checkpoints record a hash of every engine helper; resume and branch
@@ -178,6 +198,7 @@ class ServerFreshWorldTests(unittest.TestCase):
         self.assertEqual(defaults['subduction_response'], 'fixed_trench')
         self.assertEqual(defaults['retained_phases'], 'disabled')
         self.assertTrue(defaults['effective_subduction']['enabled'])
+        self.assertEqual(defaults['effective_subduction']['force_n_per_m'], 3e13)
         self.assertEqual(defaults['enhanced_rifting'], SEP21T_RIFTING)
         self.assertEqual(set(defaults), set(server.DEFAULT_CONFIG))
         normalized_legacy = server.validate_config(deepcopy(server.DEFAULT_CONFIG))
@@ -219,6 +240,7 @@ class ServerFreshWorldTests(unittest.TestCase):
         self.assertEqual(saved['subduction_response'], 'fixed_trench')
         self.assertEqual(saved['retained_phases'], 'disabled')
         self.assertTrue(saved['effective_subduction']['enabled'])
+        self.assertEqual(saved['effective_subduction']['force_n_per_m'], 3e13)
         self.assertTrue(saved['primordial_subduction']['enabled'])
         self.assertEqual(saved['enhanced_rifting'], SEP21T_RIFTING)
         # Re-validating the saved file (branch) reproduces it exactly.
@@ -287,6 +309,16 @@ class CommandLineTests(unittest.TestCase):
         explicit = {'physics_profile': 'reviewed_v1', 'subduction_response': 'moving_hinge_v1',
                     'retained_phases': 'thermal_v1', 'enhanced_rifting': {'enabled': True}}
         self.assertEqual(self.rerun(explicit), native_engine.validate_config(explicit))
+
+    def test_saved_partial_lite_force_keeps_historical_engine_meaning(self):
+        for settings in ({}, {'enabled': False}, {'enabled': True},
+                         {'enabled': True, 'force_n_per_m': 5e12},
+                         {'enabled': True, 'force_n_per_m': 9e12}):
+            saved = fresh(dict(SMALL, physics_profile='reviewed_v1'))
+            saved['effective_subduction'] = settings
+            with self.subTest(settings=settings):
+                expected = native_engine.validate_config(saved)
+                self.assertEqual(self.rerun(saved), expected)
 
     def test_saved_config_without_profile_reproduces_as_legacy(self):
         # Runs saved before physics_profile existed (e.g. 20260915-180344).

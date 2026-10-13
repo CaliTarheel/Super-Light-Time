@@ -25,7 +25,7 @@ def parser():
     result.add_argument('--effective-subduction', action=argparse.BooleanOptionalAction, default=None,
                         help='Use Lite constant trench force with declared starting trenches (default for new reviewed worlds); selects reviewed_v1, fixed trench and immediate foundering.')
     result.add_argument('--subduction-force-n-per-m', type=float,
-                        help='Effective pull per metre of active trench, in N/m (default 5e12); supplying it enables effective subduction.')
+                        help='Effective pull per metre of active trench, in N/m (new-world default 3e13); supplying it enables effective subduction.')
     return result
 
 
@@ -45,11 +45,18 @@ def build_config(args):
     """
     if args.config is not None:
         config = json.loads(args.config.read_text(encoding='utf-8'))
+        effective_settings = config.get('effective_subduction')
+        explicit_effective_force = isinstance(effective_settings, dict) and 'force_n_per_m' in effective_settings
         explicit_declaration = config.get('primordial_subduction') is not None
         saved_meaning = validate_config({})  # the engine's reading of a missing key
         for key in fresh_world.REVIEWED_FRESH_LAWS:
             if config.get(key) is None:
                 config[key] = saved_meaning[key]
+        # A saved partial law used the historical engine settings, not the
+        # new-world selection. Make that meaning explicit before start().
+        effective_settings = config.get('effective_subduction')
+        if isinstance(effective_settings, dict):
+            config['effective_subduction'] = dict(saved_meaning['effective_subduction'], **effective_settings)
         rifting = config.get('enhanced_rifting')
         if rifting is None:
             config['enhanced_rifting'] = {'enabled': False}
@@ -58,6 +65,7 @@ def build_config(args):
     else:
         config = {'physics_profile': fresh_world.REVIEWED_PROFILE}
         explicit_declaration = False
+        explicit_effective_force = False
     if args.physics_profile is not None:
         config['physics_profile'] = args.physics_profile
     if args.seed is not None:
@@ -76,6 +84,8 @@ def build_config(args):
         settings = dict(config.get('effective_subduction') or {}, enabled=True)
         if force is not None:
             settings['force_n_per_m'] = force
+        elif not explicit_effective_force:
+            settings['force_n_per_m'] = fresh_world.DEFAULT_EFFECTIVE_FORCE_N_PER_M
         config.update(effective_subduction=settings, physics_profile='reviewed_v1',
                       subduction_response='fixed_trench', retained_phases='disabled',
                       trench_persistence='kinematic', slab_allocation='uniform')
