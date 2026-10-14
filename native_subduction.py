@@ -298,7 +298,10 @@ def integrate_capture(s,rows,dt):
     admitted=np.zeros(shape);weighted=np.zeros(shape)
     contexts={};accepted=defaultdict(list);prior_context={}
     raw=0.;water_before_union=0.;foreign=0.;pieces=0
-    track_slab=slab_memory.enabled(s)
+    # The Lite attachment policy needs accepted intake attribution, but it
+    # still creates no detailed slab inventory or retained slab mass.
+    import persistent_ocean_intake
+    track_slab=slab_memory.enabled(s) or persistent_ocean_intake.enabled(s)
     contributions=[]
     supply_fronts=None;supply_contributions=[]
     if _supply_version(s):

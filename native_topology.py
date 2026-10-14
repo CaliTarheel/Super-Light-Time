@@ -157,6 +157,9 @@ def _commit(s,p,region,parcel_side,trace_side,rotations,setting,loading,center,r
         description=(f"{s.names[p]} had become geographically disconnected; its separated "
                      f"{'basin' if setting=='oceanic' else 'region'} became {s.names[q]}.")
         geometry,model='no fracture: region already disconnected from its plate','topological isolation'
+    elif (loading or {}).get('cause') == 'persistent_intake_yield':
+        description=(f"Attachment stress divided {s.names[p]} along a yielded fault, creating {s.names[q]}.")
+        geometry,model='viable native whole-patch fault','explicit rate-independent intake fault release'
     else:
         description=(f"A developed {'oceanic' if setting=='oceanic' else 'continental'} deformation belt "
                      f"divided {s.names[p]}, creating {s.names[q]}.")
