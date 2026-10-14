@@ -161,6 +161,15 @@ class LocalTerm:
         return self.coefficient*value, self.coefficient*first*row, self.coefficient*second*np.outer(row, row)
 
 
+@dataclass(slots=True)
+class LocalConstraint:
+    """An intake operator; its solved reaction is never a frozen mode load."""
+    owners: tuple
+    ports: tuple
+    row: np.ndarray
+    minimum: float
+
+
 class _Spatial:
     def __init__(self, balance, band_km):
         self.s = balance.s
@@ -491,6 +500,31 @@ def export(balance, x=None, *, band_km=None, delta=None):
             lifted = -port.lift(gradient[3*j:3*j+3])*_TORQUE
             arrays[term.kind][positions] += lifted
             local_gross[port.owner] += float(np.abs(lifted).sum())
+    constraints = []
+    intake = getattr(balance, 'intake_constraints', None)
+    if intake is not None and len(intake['rows']):
+        reaction = np.asarray(getattr(balance, 'intake_reaction', ()), float)
+        if (reaction.shape != (len(intake['rows']),) or np.any(reaction < 0.)
+                or not np.array_equal(x, getattr(balance, 'x', None))):
+            raise UnsupportedForceLedger('Intake forces require the current constrained equilibrium and reactions.')
+        for operator, minimum, source, weight in zip(intake['rows'], intake['minimum'], intake['ports'], reaction):
+            owners = (source['down'], source['over'])
+            ids = _indices(balance, owners)
+            ports = tuple(spatial.port(p, source['point']) for p in owners)
+            constraints.append(LocalConstraint(owners, ports, operator[ids], float(minimum)))
+            force = weight*operator
+            actual_force += force
+            expected_gradient -= force
+            balance._force_reference += np.abs(force)
+            for j, port in enumerate(ports):
+                arrays = local[port.owner]
+                kind = 'persistent_ocean_intake'
+                if kind not in arrays:
+                    arrays[kind] = np.zeros((len(spatial.cells[port.owner]), 3))
+                positions = np.fromiter((lookup[port.owner][int(c)] for c in port.cells), int, count=len(port.cells))
+                lifted = port.lift(weight*operator[ids][3*j:3*j+3])*_TORQUE
+                arrays[kind][positions] += lifted
+                local_gross[port.owner] += float(np.abs(lifted).sum())
     gross = float(np.max(balance._force_reference, initial=0.))
     gradient_error = _relative_error(actual_force, -expected_gradient, gross)
     if gradient_error > AGREEMENT_TOLERANCE:
@@ -539,8 +573,9 @@ def export(balance, x=None, *, band_km=None, delta=None):
             raise UnsupportedForceLedger('Attached force ledger disagrees with exact expanded-channel edge forces.')
     return dict(plates=plates, generalized_force=actual_force, expected_generalized_force=-expected_gradient,
         motion_coordinates=x.copy(),
-        local_terms=terms, source_balance=balance, delta=float(delta),
+        local_terms=terms, local_constraints=constraints, source_balance=balance, delta=float(delta),
         diagnostics=dict(version=1, source='current assembled Balance', complete=True, unsupported_terms=[],
+            prescribed_intake_constraints=len(constraints),
             stiffness_agreement=matrix_error, drive_agreement=drive_error, gradient_agreement=gradient_error,
             spatial_sum_agreement=closure, attached_edge_agreement=attached_error,
             plate_diagnostics={str(p): entry['diagnostics'] for p, entry in plates.items()},
@@ -620,6 +655,18 @@ def compile_mode(ledger, basis):
     result.elements = []; result.hinge = []; result.hinge_coefficient = []
     result.resistance_version = source.resistance_version
     result.delta = ledger['delta']; result.notes = {}; result.partition = None
+    constraint_rows, constraint_minimum = [], []
+    for constraint in ledger.get('local_constraints', ()):
+        projection = np.vstack([port.basis(prepared[port.owner], inverse[port.owner])
+                                for port in constraint.ports])
+        constraint_rows.append(constraint.row@projection)
+        constraint_minimum.append(constraint.minimum)
+    result.intake_constraints = dict(rows=np.asarray(constraint_rows).reshape(-1, m),
+                                    minimum=np.asarray(constraint_minimum), ports=[])
+    if common and len(constraint_rows):
+        original = source.intake_constraints['rows']
+        if not np.allclose(result.intake_constraints['rows'][:, :source.size], original, rtol=1e-12, atol=1e-14):
+            raise UnsupportedForceLedger('Finite mode changes the common intake constraints.')
     groups = {}
     for term in ledger['local_terms']:
         projection = np.vstack([port.basis(prepared[port.owner], inverse[port.owner]) for port in term.ports])

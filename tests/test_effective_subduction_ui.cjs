@@ -174,4 +174,17 @@ assert.match(get('recorded-physics-note').textContent,/effective trench force, 5
 assert.match(get('recorded-physics-note').textContent,/Lite · effective trench force/);
 assert.match(get('recorded-physics-note').textContent,/declared initial trench arcs/);
 assert.doesNotMatch(get('recorded-physics-note').textContent,/deep slabs|historical fixed-trench response/);
+// A copied experimental configuration retains its recorded attachment policy.
+const intake = {enabled:true,minimum_intake_cm_yr:.1,breakup_mode:'on_conflict'};
+sandbox.fillConfig({...effective,effective_subduction:{...effective.effective_subduction,persistent_intake:intake}});
+assert.deepEqual(json(sandbox.readConfig().effective_subduction.persistent_intake),intake);
+sandbox.fillConfig({width:512});
+assert.deepEqual(json(sandbox.readConfig().effective_subduction.persistent_intake),intake);
+get('effective-subduction-force').value='30';
+assert.equal(sandbox.readConfig().effective_subduction.force_n_per_m,3e13);
+sandbox.updateRecordedPhysicsNote({physics_profile_version:1,effective_subduction_version:1,
+  persistent_ocean_intake_version:1,effective_subduction_diagnostics:{force_n_per_m:3e13}},false);
+assert.match(get('recorded-physics-note').textContent,/incoming pull plus attachment reactions/);
+sandbox.fillConfig(effective);
+assert.equal(sandbox.readConfig().effective_subduction.persistent_intake,undefined);
 console.log('Effective subduction UI: force units, saved configs, compatible laws and preset overrides passed.');

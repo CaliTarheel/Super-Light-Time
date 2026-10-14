@@ -668,6 +668,16 @@ class Simulation(legacy.Simulation):
             return
         super()._migrate_trenches(dt)
 
+    def _forces(self, dt):
+        import persistent_ocean_intake
+        if (persistent_ocean_intake.enabled(self)
+                and persistent_ocean_intake._configured(self)['breakup_mode'] == 'on_conflict'):
+            import intake_faulting
+            self.omega, self.plate_balance_diagnostics = intake_faulting.solve(self, dt)
+            self.omega[~self.active] = 0.
+            return
+        super()._forces(dt)
+
     def _label_codes(self):
         """Display and statistics labels: the mechanism, not the kinematic gate."""
         return boundary_labels.codes(self)

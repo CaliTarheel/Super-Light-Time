@@ -190,7 +190,7 @@
     result.physics_profile = $("physics_profile").value;
     const reviewed = result.physics_profile === "reviewed_v1";
     const effective = reviewed && $("subduction-force-law").value === "effective";
-    result.effective_subduction = effective ? {enabled: true, force_n_per_m: Number($("effective-subduction-force").value) * 1e12} : {enabled: false};
+    result.effective_subduction = effective ? {...structuredClone(state.savedEffectiveOptions || {}), enabled: true, force_n_per_m: Number($("effective-subduction-force").value) * 1e12} : {enabled: false};
     if (effective && (!Number.isFinite(result.effective_subduction.force_n_per_m) || result.effective_subduction.force_n_per_m <= 0)) throw new Error("Effective trench pull per metre must be finite and positive.");
     result.subduction_response = reviewed && !effective ? $("subduction_response").value : "fixed_trench";
     result.retained_phases = reviewed && !effective ? $("retained_phases").value : "disabled";
@@ -245,6 +245,7 @@
     if (config.physics_profile !== undefined || config.seed !== undefined) $("physics_profile").value = config.physics_profile || "legacy";
     if (config.effective_subduction !== undefined || config.seed !== undefined) {
       state.detailedSubductionDraft = null;
+      state.savedEffectiveOptions = structuredClone(config.effective_subduction || {});
       $("subduction-force-law").value = config.effective_subduction?.enabled ? "effective" : "slab";
       $("effective-subduction-force").value = (config.effective_subduction?.force_n_per_m ?? 5e12) / 1e12;
     }
@@ -341,8 +342,8 @@
       $("time-value").textContent = "0";
     } else {
       $("map-title").textContent = "A world in motion";
-      $("mode-badge").textContent = state.status.state === "paused" ? "PAUSED EXPERIMENT" : isRunning() ? "SIMULATING" : "RECORDED HISTORY";
-      $("mode-badge").className = `mode-badge ${isRunning() ? "running" : "history"}`;
+      $("mode-badge").textContent = state.status.state === "paused" ? "PAUSED EXPERIMENT" : isRunning() || state.status.preview_running ? "SIMULATING" : "RECORDED HISTORY";
+      $("mode-badge").className = `mode-badge ${isRunning() || state.status.preview_running ? "running" : "history"}`;
       $("map-caption").textContent = "Click to inspect history · scroll to zoom · Shift-drag to pan";
       $("editor-hint").textContent = "The map shows recorded history. Choose Edit to change the starting world.";
       $("edit-world").textContent = "Edit";
@@ -1838,7 +1839,7 @@
     errorNote.hidden = status.state !== "error";
     errorNote.textContent = status.state === "error" ? `Simulation stopped: ${status.error || "Unknown error. The server log has more information."} Saved history remains available.` : "";
     const resumable = Boolean(status.can_resume), legacyStopped = ["cancelled", "interrupted"].includes(status.state);
-    $("run-progress").hidden = !running && !paused && !legacyStopped && !["complete", "error"].includes(status.state);
+    $("run-progress").hidden = !running && !paused && !legacyStopped && !status.preview_message && !["complete", "error"].includes(status.state);
     $("pause-button").hidden = !running && !paused && !legacyStopped;
     $("pause-button").textContent = status.state === "pausing" ? "Pausing…" : status.state === "resuming" ? "Resuming…" : paused || legacyStopped ? "Resume" : "Pause";
     $("pause-button").disabled = transition || !(status.state === "running" || resumable);
@@ -1850,8 +1851,8 @@
     updateGosplControls();
     updateTimeline();
     if (state.mode === "history") {
-      $("mode-badge").textContent = paused ? "PAUSED EXPERIMENT" : status.state === "pausing" ? "SAVING CHECKPOINT" : status.state === "resuming" ? "RESUMING" : running ? "SIMULATING" : "RECORDED HISTORY";
-      $("mode-badge").className = `mode-badge ${running ? "running" : "history"}`;
+      $("mode-badge").textContent = paused ? "PAUSED EXPERIMENT" : status.state === "pausing" ? "SAVING CHECKPOINT" : status.state === "resuming" ? "RESUMING" : running || status.preview_running ? "SIMULATING" : "RECORDED HISTORY";
+      $("mode-badge").className = `mode-badge ${running || status.preview_running ? "running" : "history"}`;
     }
   }
 
@@ -1862,6 +1863,7 @@
     if (state.runId !== status.run_id) {
       state.cache.clear(); state.frameRequest++; state.currentIndex = 0; state.frame = null;
       state.runId = status.run_id;
+      if (status.config) fillConfig(status.config);
       syncOrientationContext();
       reconcileTerrainExperiment();
       resetHistory();
@@ -1886,8 +1888,8 @@
     const progress = Number(status.progress || 0);
     $("progress-bar").value = progress > 1 ? progress / 100 : progress;
     $("progress-label").textContent = `${Math.round(Number(status.time_myr || 0)).toLocaleString()} / ${Number(status.duration_myr || status.config?.duration_myr || $("duration_myr").value).toLocaleString()} Myr`;
-    $("progress-detail").textContent = `${state.frames.length} snapshots saved · ${Math.round((progress > 1 ? progress / 100 : progress) * 100)}% complete`;
-    $("connection-status").textContent = `LOCAL ENGINE · ${status.state === "running" ? "RUNNING" : "CONNECTED"}`;
+    $("progress-detail").textContent = `${state.frames.length} snapshots saved · ${status.preview_message || `${Math.round((progress > 1 ? progress / 100 : progress) * 100)}% complete`}`;
+    $("connection-status").textContent = `LOCAL ENGINE · ${status.state === "running" || status.preview_running ? "RUNNING" : "CONNECTED"}`;
     if (state.frames.length && !globeOrientation.pending && (!state.frame || (following && previousCount !== state.frames.length))) await showFrame(state.frames.length - 1, { automatic: true });
     if (state.inspection && previousCount !== state.frames.length) updateInspection();
     if (state.status !== status) return;
@@ -2532,7 +2534,8 @@
     const responseVersion = data.subduction_response_version ?? data.physics_profile?.subduction_response_version;
     const phaseVersion = data.retained_dense_crust_version ?? data.physics_profile?.retained_dense_crust_version;
     const force = data.effective_subduction_diagnostics?.force_n_per_m;
-    const response = effective ? ` · Lite · effective trench force${Number.isFinite(force) ? `, ${force / 1e12} × 10¹² N/m` : ""}, incoming plate only` : responseVersion === 1 ? " · moving-trench overriding-plate response" : data.physics_profile_version === 1 && (responseVersion === undefined || responseVersion === 0) ? " · historical fixed-trench response" : "";
+    const persistentIntake = data.persistent_ocean_intake_version === 1;
+    const response = effective ? ` · Lite · effective trench force${Number.isFinite(force) ? `, ${force / 1e12} × 10¹² N/m` : ""}, ${persistentIntake ? "incoming pull plus attachment reactions · persistent ocean subduction" : "incoming plate only"}` : responseVersion === 1 ? " · moving-trench overriding-plate response" : data.physics_profile_version === 1 && (responseVersion === undefined || responseVersion === 0) ? " · historical fixed-trench response" : "";
     const phases = phaseVersion === 1 ? " · retained dense crust with thermal phase evolution" : data.physics_profile_version === 1 && (phaseVersion === undefined || phaseVersion === 0) ? " · historical immediate dense-crust foundering" : "";
     const riftGate = data.rift_mechanics?.rupture_strain_threshold;
     const rifting = data.enhanced_rifting_version === 1 ? ` · enhanced rifting: seeded inheritance, realized-strain rupture${Number.isFinite(riftGate) ? ` (numerical gate ${riftGate} logarithmic strain)` : ""}` : "";

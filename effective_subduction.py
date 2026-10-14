@@ -18,7 +18,7 @@ def normalize(value=None):
     defaults = dict(enabled=False, force_n_per_m=DEFAULT_FORCE_N_PER_M)
     if value is None:
         return defaults
-    if not isinstance(value, dict) or set(value)-set(defaults)-{'initiation', 'carrier_traction'}:
+    if not isinstance(value, dict) or set(value)-set(defaults)-{'initiation', 'carrier_traction', 'persistent_intake'}:
         raise ValueError('Effective subduction settings contain unknown fields.')
     result = dict(defaults, **value)
     if type(result['enabled']) is not bool:
@@ -38,6 +38,11 @@ def normalize(value=None):
         result['carrier_traction'] = carrier.normalize(result['carrier_traction'])
         if result['carrier_traction']['enabled'] and not result['enabled']:
             raise ValueError('Carrier traction requires the existing effective subduction law.')
+    if 'persistent_intake' in result:
+        import persistent_ocean_intake as intake
+        result['persistent_intake'] = intake.normalize(result['persistent_intake'])
+        if result['persistent_intake']['enabled'] and not result['enabled']:
+            raise ValueError('Persistent ocean intake requires the existing effective subduction law.')
     return result
 
 
@@ -91,6 +96,8 @@ def initialize(s):
     s.effective_subduction_settings = deepcopy(settings)
     import effective_subduction_carrier_traction as carrier
     carrier.initialize(s)
+    import persistent_ocean_intake
+    persistent_ocean_intake.initialize(s)
     validate_compatibility(s)
     down = np.broadcast_to(incoming, (len(s.ba),)).astype(int).copy()
     groups = trench_history._components(s, selected, down)
@@ -234,6 +241,8 @@ def update(s, dt):
         row['total_shortening_km'] += speed*dt
     import effective_subduction_initiation
     effective_subduction_initiation.update(s, dt)
+    import persistent_ocean_intake
+    persistent_ocean_intake.update(s)
     s._trench_last_update_myr = float(s.t)
     prepare(s)
     _, forces, live = line_state(s)
@@ -261,11 +270,18 @@ def snapshot(s):
     import effective_subduction_initiation
     if effective_subduction_initiation.enabled(s):
         diagnostics['evolution']='Established traces persist; accepted local induced-fault gates create pending trenches, activated before their next solved source interval.'
+    import persistent_ocean_intake
+    if persistent_ocean_intake.enabled(s):
+        diagnostics['closure'] += ' Positive ocean intake is additionally enforced by paired attachment reactions with separately reported source power.'
+        diagnostics['evolution'] = 'Actual accepted ocean intake latches each trench; the wet finite trace remains constrained through subsequent motion and plate splits.'
     return dict(effective_subduction_version=VERSION, effective_subduction_diagnostics=diagnostics,
-        **effective_subduction_initiation.snapshot(s), **carrier.snapshot(s))
+        **effective_subduction_initiation.snapshot(s), **carrier.snapshot(s),
+        **persistent_ocean_intake.snapshot(s))
 
 
 def validate_frame(frame):
     """Validate optional carrier metadata without changing legacy frame contracts."""
     import effective_subduction_carrier_traction as carrier
-    return carrier.validate_frame(frame)
+    import persistent_ocean_intake
+    carrier.validate_frame(frame)
+    return persistent_ocean_intake.validate_frame(frame)
