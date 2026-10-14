@@ -105,7 +105,7 @@ def _match(s, *, include_shutdown=True):
             edges = edges[initial_selection[edges]]
         if not len(edges):
             continue
-        distance = _nearest(s.bmid[edges], row['geometry_xyz'])
+        distance = _contact_trace_distance(s, edges, row['geometry_xyz'])
         radius = max(120., 1.8*_spacing(s), row.get('anchor_gap_km', 0.)*.65)
         incoming_owner = current[row['downgoing_plate_uid']]
         incoming = np.where(s.bp[edges] == incoming_owner, s.ba[edges], s.bb[edges])
@@ -946,4 +946,62 @@ def retreat_weight(s, down, over, cells):
             best[take] = value[take]
         assigned[best < math.cos(max(3000., 4.*_spacing(s))/RADIUS_KM)] = 0.
         result[start:start+512] = assigned
+    return result
+
+
+
+def _segment_nearest(starts, ends, anchors):
+    """Nearest anchor distance to each minor spherical contour piece, in km."""
+    starts, ends, anchors = (np.asarray(value, float) for value in (starts, ends, anchors))
+    starts = starts/np.maximum(np.linalg.norm(starts, axis=1, keepdims=True), 1e-30)
+    ends = ends/np.maximum(np.linalg.norm(ends, axis=1, keepdims=True), 1e-30)
+    anchors = anchors/np.maximum(np.linalg.norm(anchors, axis=1, keepdims=True), 1e-30)
+    cross = np.cross(starts, ends)
+    sine = np.linalg.norm(cross, axis=1)
+    normal = cross/np.maximum(sine[:, None], 1e-30)
+    arc = np.arctan2(sine, np.sum(starts*ends, axis=1))
+    nearest = np.full(len(starts), np.inf)
+    for first in range(0, len(starts), 256):
+        last = min(first+256, len(starts))
+        a, b, n, ab = starts[first:last], ends[first:last], normal[first:last], arc[first:last]
+        dot = anchors @ n.T
+        projected = anchors[:, None, :]-dot[:, :, None]*n[None, :, :]
+        projected_length = np.linalg.norm(projected, axis=2)
+        q = projected/np.maximum(projected_length[:, :, None], 1e-30)
+        aq = np.arctan2(np.linalg.norm(np.cross(a[None, :, :], q), axis=2), np.sum(a[None, :, :]*q, axis=2))
+        qb = np.arctan2(np.linalg.norm(np.cross(q, b[None, :, :]), axis=2), np.sum(q*b[None, :, :], axis=2))
+        on_arc = (projected_length > 1e-15) & (aq+qb <= ab[None, :]+1e-10)
+        cross_track = np.arctan2(np.abs(dot), projected_length)
+        da = np.arctan2(np.linalg.norm(np.cross(anchors[:, None, :], a[None, :, :]), axis=2), np.sum(anchors[:, None, :]*a[None, :, :], axis=2))
+        db = np.arctan2(np.linalg.norm(np.cross(anchors[:, None, :], b[None, :, :]), axis=2), np.sum(anchors[:, None, :]*b[None, :, :], axis=2))
+        distance = np.minimum(da, db)
+        distance[on_arc] = np.minimum(distance[on_arc], cross_track[on_arc])
+        nearest[first:last] = distance.min(axis=0)*RADIUS_KM
+    return nearest
+
+
+def _contact_trace_distance(s, edges, anchors):
+    """Measure shared-version contacts on the contour pieces that gave them length."""
+    geometry = getattr(s, 'native_boundary_geometry', None)
+    keys = ('share_segment', 'share_contact', 'share_weight', 'segments_start', 'segments_end')
+    if (getattr(s, 'contact_share_version', 0) != 1 or not isinstance(geometry, dict)
+            or not all(key in geometry for key in keys)):
+        return _nearest(s.bmid[edges], anchors)
+    contacts = np.asarray(geometry['share_contact'])
+    segments = np.asarray(geometry['share_segment'])
+    weights = np.asarray(geometry['share_weight'], float)
+    use = np.isin(contacts, edges) & (weights > 0.)
+    if not np.any(use):
+        return _nearest(s.bmid[edges], anchors)
+    contacts, segments = contacts[use], segments[use]
+    starts, ends = np.asarray(geometry['segments_start']), np.asarray(geometry['segments_end'])
+    if (contacts.shape != segments.shape or np.any(segments < 0) or np.any(segments >= len(starts))
+            or ends.shape != starts.shape or np.any(contacts < 0) or np.any(contacts >= len(s.ba))):
+        raise ValueError('Contact shares reference invalid contour pieces.')
+    distance = np.full(len(s.ba), np.inf)
+    np.minimum.at(distance, contacts, _segment_nearest(starts[segments], ends[segments], anchors))
+    result = distance[edges]
+    missing = ~np.isfinite(result)
+    if np.any(missing):
+        result[missing] = _nearest(s.bmid[edges[missing]], anchors)
     return result
